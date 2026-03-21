@@ -4,10 +4,16 @@ import userRouter from './routers/user.route';
 import productRouter from './routers/product.route';
 import { connectDB } from './config/db';
 import jwt from 'jsonwebtoken';
+import cors from 'cors';
 dotenv.config();
 
 const app = express();
 
+
+app.use(cors({
+  origin: "http://localhost:5173", // your frontend
+  credentials: true
+}));
 
 app.use(express.json());
 
@@ -22,6 +28,7 @@ app.get('/', (req, res) => {
 });
 
 connectDB();
+
 
 // routes
 app.use('/api/users', userRouter);
