@@ -5,6 +5,8 @@ import productRouter from './routers/product.route';
 import { connectDB } from './config/db';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
+import refreshRouter from './routers/refresh.route';
+
 dotenv.config();
 
 const app = express();
@@ -33,6 +35,7 @@ connectDB();
 // routes
 app.use('/api/users', userRouter);
 app.use('/api/products', productRouter);
+app.use('/api', refreshRouter);    
 
 app.get('/validate', (req, res) => {            
     

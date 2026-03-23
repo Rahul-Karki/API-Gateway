@@ -1,6 +1,0 @@
-2026/02/08 06:28:44 [warn] 1#1: low address bits of 172.22.0.1/16 are meaningless in /etc/nginx/includes/metrics.conf:3
-2026/02/08 06:28:44 [warn] 1#1: low address bits of 172.22.0.1/16 are meaningless in /etc/nginx/includes/metrics.conf:3
-2026/02/08 06:28:44 [emerg] 1#1: unknown "req_id" variable
-2026/02/08 06:43:05 [warn] 1#1: low address bits of 172.22.0.1/16 are meaningless in /etc/nginx/includes/metrics.conf:3
-2026/02/08 06:43:05 [warn] 1#1: low address bits of 172.22.0.1/16 are meaningless in /etc/nginx/includes/metrics.conf:3
-2026/02/08 06:43:05 [emerg] 1#1: unknown "req_id" variable

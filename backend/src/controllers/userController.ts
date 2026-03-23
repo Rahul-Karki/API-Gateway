@@ -71,7 +71,7 @@ const login = async (req: Request, res: Response) => {
 
     if (!user) {
       return res.status(400).json({
-        message: "Invalid email",
+        message: "No user found with this email",
       });
     }
 

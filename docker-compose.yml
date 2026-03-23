@@ -16,6 +16,19 @@ services:
     depends_on:
       - mongo
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"      # nginx serves on 80, not 5173
+    networks:
+      - app-network
+    depends_on:
+      - backend
+
   mongo:
     image: mongo:7
     container_name: mongo
