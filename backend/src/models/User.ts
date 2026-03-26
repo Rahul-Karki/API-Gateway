@@ -7,6 +7,7 @@ export interface IUser extends Document {
     password?: string;
     googleId?: string;
     authProvider: "local" | "google"; 
+    passwordResetAt: Date;
 }
 
 const userSchema = new Schema<IUser>({
@@ -30,6 +31,9 @@ const userSchema = new Schema<IUser>({
       type: String,
       unique: true,
       sparse: true, // allows multiple docs with null googleId
+    },
+    passwordResetAt: {
+      type: Date,
     },
     authProvider: {
       type: String,

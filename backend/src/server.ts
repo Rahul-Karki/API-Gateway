@@ -1,6 +1,5 @@
 import express from 'express';
-import dotenv from 'dotenv';
-import userRouter from './routers/user.route';
+import authRouter from './routers/auth.route';
 import productRouter from './routers/product.route';
 import { connectDB } from './config/db';
 import jwt from 'jsonwebtoken';
@@ -8,6 +7,7 @@ import cors from 'cors';
 import refreshRouter from './routers/refresh.route';
 import cookieParser from 'cookie-parser';
 
+import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
@@ -30,7 +30,7 @@ connectDB();
 
 
 // routes
-app.use('/api/users', userRouter);
+app.use('/api/auth', authRouter);
 app.use('/api/products', productRouter);
 app.use('/api', refreshRouter);    
 

@@ -21,7 +21,6 @@ const ProtectedRoute = ({ children }: any) => {
     if (!user) checkAuth();
   }, []);
 
-  if (loading) return <div>Loading...</div>;
 
   if (!user) return <Navigate to="/login" />;
 

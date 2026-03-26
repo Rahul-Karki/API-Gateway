@@ -1,26 +1,41 @@
 import { GoogleLogin } from "@react-oauth/google";
-import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { setAccessToken } from "@/utils/storage";
+import { useAuth } from "@/context/AuthContext";
+import apiClient from "@/services/apiClient";
 
 const GoogleAuthButton = () => {
+  const navigate = useNavigate();
+  const { setUser } = useAuth();
+
   return (
     <GoogleLogin
       onSuccess={async (credentialResponse) => {
         try {
-          const res = await axios.post(
-            "http://localhost:8080/api/users/google-login",
+          const res = await apiClient.post(
+            "/api/auth/google-login",
             {
               token: credentialResponse.credential,
             },
             { withCredentials: true }
           );
 
-          console.log(res.data);
+          // ✅ 1. Save access token
+          setAccessToken(res.data.accessToken);
 
-          alert("Loggged in sucecssfully");
-          window.location.href = "/home";
-        } catch (err) {
-          alert(err);
+          // ✅ 2. Fetch user
+          const userRes = await apiClient.get("/api/auth/me");
+
+          // ✅ 3. Set user in context
+          setUser(userRes.data.user);
+
+          alert("Okk ho gaya ji !!")
+          // ✅ 4. Navigate properly
+          navigate("/home");
+
+        } catch (err: any) {
           console.error(err);
+          alert(err.response?.data?.message || "Google login failed");
         }
       }}
       onError={() => {
