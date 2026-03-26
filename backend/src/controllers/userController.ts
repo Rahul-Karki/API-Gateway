@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import { User } from "../models/User";
+import { verifyGoogleToken } from "../utils/google";
 import bcrypt from "bcrypt";
 import {
   generateAccessToken,
   generateRefreshToken,
 } from "../utils/generateToken";
+import { AuthRequest } from "../middlewares/authMiddleware";
 
 const signUp = async (req: Request, res: Response) => {
   try {
@@ -61,25 +63,97 @@ const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
+    // 1. Validate input
     if (!email || !password) {
       return res.status(400).json({
-        message: "Please provide email and password",
+        message: "Email and password are required",
       });
     }
 
-    const user = await User.findOne({ email });
+    // 2. Find user
+    const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
-      return res.status(400).json({
-        message: "No user found with this email",
+      return res.status(401).json({
+        message: "Invalid email or password",
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    // 3. Check auth provider (IMPORTANT FIX)
+    if (user.authProvider === "google") {
+      return res.status(400).json({
+        message: "This account is registered with Google. Please login using Google.",
+      });
+    }
+
+    // 4. Compare password
+    const isMatch = await bcrypt.compare(password, user.password!);
 
     if (!isMatch) {
-      return res.status(400).json({
-        message: "Invalid password",
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    // 5. Generate tokens
+    const accessToken = generateAccessToken(user._id.toString());
+    const refreshToken = generateRefreshToken(user._id.toString());
+
+    // 6. Set cookie
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+    });
+
+    // 7. Send response
+    res.status(200).json({
+      accessToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+      },
+    });
+
+  } catch (error) {
+    console.error(error); // 👈 always log errors
+    res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+
+const googleLogin = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.body;
+
+    const payload = await verifyGoogleToken(token);
+
+    if (!payload || !payload.email) {
+      return res.status(400).json({ message: "Invalid Google token" });
+    }
+
+    // 🔍 Find or create user
+    let user = await User.findOne({ email: payload.email });
+
+    const email = payload.email;
+    const name = payload.name;
+    const googleId = payload.sub;
+  
+    if (user) {
+      // 3. Link Google account if not linked
+      if (!user.googleId) {
+        user.googleId = googleId;
+        await user.save();
+      }
+    } else {
+      // 4. Create new user
+      user = await User.create({
+        email,
+        name,
+        googleId,
       });
     }
 
@@ -88,19 +162,33 @@ const login = async (req: Request, res: Response) => {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: "strict",
+      secure: false,
+      sameSite: "lax",
     });
 
-    return res.status(200).json({
-      message: "Login successful",
+    return res.json({
+      user,
+      message: "Google login successful",
       accessToken,
     });
   } catch (error) {
-    return res.status(500).json({
-      message: "Error occurred while logging in",
-    });
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
   }
-};
+}
 
-export { signUp, login };
+const getMe = async(req : AuthRequest , res: Response) => {
+  try{
+    // req.user is set by your authMiddleware
+    res.status(200).json({
+      user: req.user,
+    });
+  }catch(err){
+    res.status(500).json({
+        message: "Server error"
+      } 
+    )
+  }
+}
+
+export { signUp, login , googleLogin , getMe };

@@ -6,18 +6,15 @@ import { connectDB } from './config/db';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
 import refreshRouter from './routers/refresh.route';
+import cookieParser from 'cookie-parser';
 
 dotenv.config();
 
 const app = express();
 
 
-app.use(cors({
-  origin: "http://localhost:5173", // your frontend
-  credentials: true
-}));
-
 app.use(express.json());
+app.use(cookieParser());
 
 const PORT = process.env.PORT || 5000;
 
@@ -54,3 +51,4 @@ app.get('/validate', (req, res) => {
     }
 
 });
+

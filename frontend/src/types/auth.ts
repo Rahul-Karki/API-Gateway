@@ -18,3 +18,9 @@ export interface User{
     email: string;
 }
 
+export type AuthContextType = {
+  user: User | null;
+  setUser: (user: any) => void;
+  loading: boolean;
+  setLoading: (loading: boolean) => void; // ✅ ADD THIS
+};

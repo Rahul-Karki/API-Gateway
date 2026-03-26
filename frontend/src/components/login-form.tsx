@@ -20,6 +20,9 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import apiClient from "@/services/apiClient";
+import { GoogleLogin } from "@react-oauth/google";
+import GoogleAuthButton from "./ui/GoogleLoginButton";
+import { useAuth } from "@/context/AuthContext";
 
 export function LoginForm({
   className,
@@ -32,6 +35,7 @@ export function LoginForm({
   })
 
   const navigate = useNavigate();
+  const { setUser } = useAuth();
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setFormData({
@@ -52,7 +56,11 @@ export function LoginForm({
       setAccessToken(res.data.accessToken);
       console.log(res.data)
 
-      
+      const userRes = await apiClient.get("/api/auth/me");
+
+      // ✅ update context
+      setUser(userRes.data.user);
+  
       alert("Login successful")
       navigate("/home") 
 
@@ -110,11 +118,9 @@ export function LoginForm({
               </Field>
               <Field>
                 <Button type="submit">Login</Button>
-                <Button variant="outline" type="button">
-                  Login with Google
-                </Button>
+                <GoogleAuthButton />
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account? <a href="/">Sign up</a>
+                  Don&apos;t have an account? <a href="/signup">Sign up</a>
                 </FieldDescription>
               </Field>
             </FieldGroup>

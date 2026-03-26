@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input"
 import apiClient from "@/services/apiClient"
 import { setAccessToken } from "@/utils/storage"
+import GoogleAuthButton from "./GoogleLoginButton"
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
 
@@ -116,9 +117,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
             <FieldGroup>
               <Field>
                 <Button type="submit">Create Account</Button>
-                <Button variant="outline" type="button">
-                  Sign up with Google
-                </Button>
+                <GoogleAuthButton />
                 <FieldDescription className="px-6 text-center">
                   Already have an account? <a href="/login">Sign in</a>
                 </FieldDescription>
