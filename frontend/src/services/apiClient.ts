@@ -1,10 +1,8 @@
 import axios from "axios";
 import { getAccessToken, setAccessToken, clearAccessToken } from "../utils/storage";
 
-const API = import.meta.env.VITE_API_URL;
-
 const apiClient = axios.create({
-  baseURL: API,
+  baseURL: "https://api-gateway-1-jqt8.onrender.com",
   withCredentials: true,
 });
 
