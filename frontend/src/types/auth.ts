@@ -13,14 +13,17 @@ export interface AuthResponse {
     accessToken: string;
 }
 
-export interface User{
-    id: string
-    email: string;
+export type User = {
+  _id: string
+  name: string
+  email: string
 }
 
+// ✅ Context type
 export type AuthContextType = {
-  user: User | null;
-  setUser: (user: any) => void;
-  loading: boolean;
-  setLoading: (loading: boolean) => void; // ✅ ADD THIS
-};
+  user: User | null
+  isAuthenticated: boolean
+  loading: boolean
+  setUser: React.Dispatch<React.SetStateAction<User | null>>
+  setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>
+}

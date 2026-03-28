@@ -1,16 +1,19 @@
-import React from "react"
-import ReactDOM from "react-dom/client"
-import App from "./App"
-import { MantineProvider } from "@mantine/core"
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import { MantineProvider } from "@mantine/core";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import "./index.css"
-  
+import "./index.css";
+import { AuthProvider } from "./context/AuthContext";
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <MantineProvider>
-      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-  <App />
-</GoogleOAuthProvider>
-    </MantineProvider>
-  </React.StrictMode>
-)
+    <AuthProvider>
+      <MantineProvider>
+        <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+          <App />
+        </GoogleOAuthProvider>
+      </MantineProvider>
+    </AuthProvider>
+  </React.StrictMode>,
+);

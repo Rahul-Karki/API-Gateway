@@ -1,59 +1,42 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-
 import apiClient from "@/services/apiClient"
 import { setAccessToken } from "@/utils/storage"
 import { useAuth } from "@/context/AuthContext"
 import GoogleAuthButton from "./GoogleLoginButton"
 
-export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
+type FormData = {
+  name: string
+  email: string
+  password: string
+  confirmPassword: string
+}
 
+export default function SignupForm() {
   const navigate = useNavigate()
   const { setUser } = useAuth()
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
   })
 
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState("")
+  const [loading, setLoading] = useState<boolean>(false)
+  const [message, setMessage] = useState<string>("")
 
-  // =========================
-  // HANDLE INPUT
-  // =========================
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.id]: e.target.value,
-    })
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }))
   }
 
-  // =========================
-  // SUBMIT
-  // =========================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // ✅ validations
     if (formData.password.length < 8) {
       setMessage("Password must be at least 8 characters long")
       return
@@ -73,20 +56,12 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
         password: formData.password,
       })
 
-      // ✅ store access token
       setAccessToken(res.data.accessToken)
 
-      // ✅ fetch user
       const userRes = await apiClient.get("/api/auth/me")
-
-      // ✅ set user in context
       setUser(userRes.data.user)
 
-      setMessage("Signup successful")
-      alert("Login suucees");
-      // ✅ redirect
       navigate("/home")
-
     } catch (err: any) {
       setMessage(err.response?.data?.message || "Signup failed")
     } finally {
@@ -94,104 +69,77 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     }
   }
 
-  // =========================
-  // UI
-  // =========================
   return (
-    <Card {...props}>
-      <CardHeader>
-        <CardTitle>Create an account</CardTitle>
-        <CardDescription>
-          Enter your information below to create your account
-        </CardDescription>
-      </CardHeader>
+    <div className="login-wrapper">
+      <div className="login-card">
+        <h2 className="font-display">Create Account</h2>
+        <p className="subtitle">Start your journey</p>
 
-      <CardContent>
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
+        <form onSubmit={handleSubmit} className="login-form">
+          {/* NAME */}
+          <div className="field">
+            <label>Full Name</label>
+            <input
+              name="name"
+              type="text"
+              value={formData.name}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-            {/* NAME */}
-            <Field>
-              <FieldLabel htmlFor="name">Full Name</FieldLabel>
-              <Input
-                id="name"
-                type="text"
-                placeholder="John Doe"
-                value={formData.name}
-                onChange={handleChange}
-                required
-              />
-            </Field>
+          {/* EMAIL */}
+          <div className="field">
+            <label>Email</label>
+            <input
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-            {/* EMAIL */}
-            <Field>
-              <FieldLabel htmlFor="email">Email</FieldLabel>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                value={formData.email}
-                onChange={handleChange}
-                required
-              />
-              <FieldDescription>
-                We’ll never share your email.
-              </FieldDescription>
-            </Field>
+          {/* PASSWORD */}
+          <div className="field">
+            <label>Password</label>
+            <input
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-            {/* PASSWORD */}
-            <Field>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-              <FieldDescription>
-                Must be at least 8 characters long.
-              </FieldDescription>
-            </Field>
+          {/* CONFIRM PASSWORD */}
+          <div className="field">
+            <label>Confirm Password</label>
+            <input
+              name="confirmPassword"
+              type="password"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-            {/* CONFIRM PASSWORD */}
-            <Field>
-              <FieldLabel htmlFor="confirmPassword">
-                Confirm Password
-              </FieldLabel>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-              />
-            </Field>
+          {/* MESSAGE */}
+          {message && <div className="message">{message}</div>}
 
-            {/* MESSAGE */}
-            {message && (
-              <p className="text-sm text-center text-green-600">
-                {message}
-              </p>
-            )}
+          {/* BUTTON */}
+          <button className="login-btn" disabled={loading}>
+            {loading ? "Creating..." : "Create Account"}
+          </button>
 
-            {/* BUTTONS */}
-            <Field>
-              <Button type="submit" disabled={loading}>
-                {loading ? "Creating..." : "Create Account"}
-              </Button>
+          {/* GOOGLE */}
+          <GoogleAuthButton />
 
-              <GoogleAuthButton />
-
-              <FieldDescription className="text-center">
-                Already have an account?{" "}
-                <a href="/login">Sign in</a>
-              </FieldDescription>
-            </Field>
-
-          </FieldGroup>
+          <p className="signup-text">
+            Already have an account? <a href="/login">Sign in</a>
+          </p>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

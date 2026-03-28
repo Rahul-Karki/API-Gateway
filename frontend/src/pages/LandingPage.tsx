@@ -1,15 +1,18 @@
 import Navbar from "@/components/landing/Navbar";
-import Hero from "@/components/landing/HeroSection";
-import Features from "@/components/landing/FeaturesSection";
-import CTA from "@/components/landing/CTASection";
+import HeroSection from "@/components/landing/HeroSection";
+import StatsBar from "@/components/landing/StatsBar";
+import CTASection from "@/components/landing/CTASection";
+import FooterSection from "@/components/landing/FooterSection";
+
 
 export default function LandingPage() {
   return (
-    <div>
+    <main className="landing-root">
       <Navbar />
-      <Hero />
-      <Features />
-      <CTA />
-    </div>
+      <HeroSection />
+      <StatsBar />
+      <CTASection />
+      <FooterSection />
+    </main>
   );
 }

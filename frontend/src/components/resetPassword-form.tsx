@@ -2,29 +2,10 @@ import { useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import axios from "axios"
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-
-export function ResetPasswordForm({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
-
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [message, setMessage] = useState("")
+export default function ResetPasswordForm() {
+  const [password, setPassword] = useState<string>("")
+  const [confirmPassword, setConfirmPassword] = useState<string>("")
+  const [message, setMessage] = useState<string>("")
 
   const navigate = useNavigate()
   const token = new URLSearchParams(useLocation().search).get("token")
@@ -32,7 +13,11 @@ export function ResetPasswordForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // ✅ Check passwords match
+    if (password.length < 8) {
+      setMessage("Please enter password of atleast 8 characters")
+      return
+    }
+
     if (password !== confirmPassword) {
       setMessage("Passwords do not match")
       return
@@ -47,69 +32,63 @@ export function ResetPasswordForm({
 
       setMessage("Password updated successfully")
 
-      // ✅ Redirect after 2 sec
       setTimeout(() => {
-        navigate("/") // or "/login"
+        navigate("/login")
       }, 1500)
-
     } catch (err) {
       setMessage("Invalid or expired link")
     }
   }
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Enter new password</CardTitle>
-        </CardHeader>
+    <div className="login-wrapper">
+      <div className="login-card">
+        {/* Glow */}
+        <div className="glow glow-1" />
+        <div className="glow glow-2" />
 
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            <FieldGroup>
+        {/* Header */}
+        <div className="login-header">
+          <h2 className="font-display">Reset Password</h2>
+          <p>Enter your new password below</p>
+        </div>
 
-              {/* NEW PASSWORD */}
-              <Field>
-                <FieldLabel htmlFor="password">New Password</FieldLabel>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </Field>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="login-form">
+          {/* PASSWORD */}
+          <div className="field">
+            <label>New Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <span className="field-hint">
+              Must be at least 8 characters
+            </span>
+          </div>
 
-              {/* CONFIRM PASSWORD */}
-              <Field>
-                <FieldLabel htmlFor="confirmPassword">
-                  Confirm New Password
-                </FieldLabel>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-              </Field>
+          {/* CONFIRM PASSWORD */}
+          <div className="field">
+            <label>Confirm Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+          </div>
 
-              {/* MESSAGE */}
-              {message && (
-                <p className="text-sm text-center text-red-500">
-                  {message}
-                </p>
-              )}
+          {/* MESSAGE */}
+          {message && <div className="message">{message}</div>}
 
-              {/* BUTTON */}
-              <Field>
-                <Button type="submit">Update Password</Button>
-              </Field>
-
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
+          {/* BUTTON */}
+          <button type="submit" className="login-btn">
+            Update Password
+          </button>
+        </form>
+      </div>
     </div>
   )
 }

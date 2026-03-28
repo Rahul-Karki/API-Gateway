@@ -1,30 +1,26 @@
-import { useEffect } from "react";
-import { Navigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import apiClient from "@/services/apiClient";
+import { Navigate } from "react-router-dom"
+import { ReactNode } from "react"
+import { useAuth } from "../context/AuthContext"
 
-const ProtectedRoute = ({ children }: any) => {
-  const { user, setUser, loading, setLoading } = useAuth();
+type ProtectedRouteProps = {
+  children: ReactNode
+}
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const res = await apiClient.get("/api/auth/me");
-        setUser(res.data);
-      } catch {
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
+const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+  const { isAuthenticated, loading } = useAuth()
 
-    if (!user) checkAuth();
-  }, []);
+  // ⏳ wait for auth check
+  if (loading) {
+    return <></>
+  }
 
+  // ❌ not logged in
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
 
-  if (!user) return <Navigate to="/login" />;
+  // ✅ logged in
+  return <>{children}</>
+}
 
-  return children;
-};
-
-export default ProtectedRoute;
+export default ProtectedRoute
