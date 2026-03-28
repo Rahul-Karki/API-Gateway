@@ -7,9 +7,9 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon dist/server.js",
-    "build": "tsc",
-    "start": "node dist/server.js"
+  "build": "tsc",
+  "start": "node dist/server.js",
+  "dev": "ts-node src/server.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
