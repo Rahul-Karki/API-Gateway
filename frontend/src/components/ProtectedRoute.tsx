@@ -9,7 +9,7 @@ const ProtectedRoute = ({ children }: any) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await apiClient.get("/api/users/me");
+        const res = await apiClient.get("/api/auth/me");
         setUser(res.data);
       } catch {
         setUser(null);

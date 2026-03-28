@@ -7,6 +7,7 @@ import { AuthProvider } from "./context/AuthContext"
 import "./App.css"
 import ProtectedRoute from "./components/ProtectedRoute"
 import LandingPage from "./pages/LandingPage"
+import ForgotPassword from "./pages/ResetPassword"
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="*" element={<NotFound/>} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/home" element={<ProtectedRoute><Home/></ProtectedRoute>} />
+        <Route path="/reset-password" element={<ForgotPassword />} />
       </Routes>
     </BrowserRouter>
     </AuthProvider>
