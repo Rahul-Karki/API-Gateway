@@ -1,0 +1,350 @@
+/* ================= GLOBAL ================= */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;700;800&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  background: #050814;
+  color: #fff;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ================= SCROLLBAR ================= */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #050814; }
+::-webkit-scrollbar-thumb { background: rgba(0,255,170,0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,255,170,0.4); }
+
+::selection {
+  background: rgba(0,255,170,0.2);
+}
+
+/* ================= LAYOUT ================= */
+.page-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.font-display {
+  font-family: 'Syne', system-ui, sans-serif;
+}
+
+/* ================= LOGIN ================= */
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: rgba(7, 12, 24, 0.95);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 20px;
+  padding: 28px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+/* GLOW EFFECT */
+.glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+.glow-1 {
+  width: 220px;
+  height: 220px;
+  top: -80px;
+  left: -80px;
+  background: rgba(0,255,170,0.15);
+}
+
+.glow-2 {
+  width: 240px;
+  height: 240px;
+  bottom: -100px;
+  right: -80px;
+  background: rgba(120,80,255,0.12);
+}
+
+/* HEADER */
+.login-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.icon-box {
+  width: 36px;
+  height: 36px;
+  background: rgba(0,255,170,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+}
+
+.login-header h2 {
+  font-size: 22px;
+}
+
+.login-header p {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+}
+
+/* FORM */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+}
+
+.field input {
+  width: 100%;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: #050814;
+  color: white;
+  padding: 0 12px;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field input:focus {
+  outline: none;
+  border: 1px solid rgba(0,255,170,0.6);
+  box-shadow: 0 0 0 2px rgba(0,255,170,0.1);
+}
+
+.field-hint {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  margin-top: 4px;
+}
+
+.field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.field-row button {
+  font-size: 12px;
+  color: rgba(0,255,170,0.9);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* MESSAGE */
+.message {
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(0,255,170,0.08);
+  text-align: center;
+  font-size: 13px;
+}
+
+/* BUTTON */
+.login-btn {
+  height: 42px;
+  border-radius: 10px;
+  background: linear-gradient(to bottom, #4dffcf, #00e6a8);
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.login-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,255,170,0.2);
+}
+
+.login-btn:active {
+  transform: scale(0.98);
+}
+
+/* DIVIDER */
+.divider {
+  text-align: center;
+  font-size: 11px;
+  opacity: 0.5;
+}
+
+/* GOOGLE BUTTON */
+.google-frame {
+  width: 100%;
+  padding: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+    135deg,
+    rgba(0,255,170,0.4),
+    rgba(255,255,255,0.08),
+    rgba(0,255,170,0.2)
+  );
+}
+
+.google-frame > div {
+  width: 100% !important;
+}
+
+/* LINKS */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+.signup-text {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+}
+
+.signup-link {
+  position: relative;
+  color: rgba(0,255,170,0.95);
+}
+
+.signup-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  height: 1px;
+  background: rgba(0,255,170,0.9);
+  transition: width 0.3s ease;
+}
+
+.signup-link:hover::after {
+  width: 100%;
+}
+
+/* ================= DOCS PAGE ================= */
+.docs-container {
+  max-width: 900px;
+  margin: auto;
+  padding: 40px 20px;
+}
+
+.docs-hero {
+  margin-bottom: 30px;
+}
+
+.docs-hero h1 {
+  font-size: 34px;
+}
+
+.docs-hero p {
+  color: rgba(255,255,255,0.6);
+}
+
+/* FLOW */
+.flow-strip {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 30px 0;
+}
+
+.flow-strip div {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(0,255,170,0.08);
+  border: 1px solid rgba(0,255,170,0.25);
+  font-size: 12px;
+}
+
+/* BLOCK */
+.docs-block {
+  margin-bottom: 28px;
+}
+
+.docs-block h2 {
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.docs-block p {
+  color: rgba(255,255,255,0.75);
+  line-height: 1.6;
+}
+
+.docs-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(0,255,170,0.6);
+}
+
+/* CODE BLOCK (NEW 🔥) */
+.code-block {
+  background: #02050d;
+  border: 1px solid rgba(255,255,255,0.05);
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+/* GRID */
+.docs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.docs-grid div {
+  background: rgba(255,255,255,0.03);
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+/* FOOTER */
+.docs-footer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.5);
+  font-size: 13px;
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 20px;
+  }
+
+  .docs-hero h1 {
+    font-size: 26px;
+  }
+}
