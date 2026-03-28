@@ -101,18 +101,6 @@ export default function FooterSection() {
               High-performance API gateway &amp; reverse proxy for modern backend architectures.
             </p>
           </div>
-          {Object.entries(LINKS).map(([col, items]) => (
-            <div key={col} className="footer-col">
-              <div className="footer-col-title">{col}</div>
-              <ul>
-                {items.map((item) => (
-                  <li key={item.label}>
-                    <Link to={item.to}>{item.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
         </div>
         <div className="footer-bottom">
           <span>© 2025 ProxGate. All rights reserved.</span>

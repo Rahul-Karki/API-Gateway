@@ -133,13 +133,6 @@ export default function Navbar() {
             <span className="nav-logo-text">Prox<span>Gate</span></span>
           </Link>
 
-          <ul className="nav-links">
-            <li><NavLink to="/features">Features</NavLink></li>
-            <li><a href="#docs">Docs</a></li>
-            <li><a href="#pricing">Pricing</a></li>
-            <li><a href="#blog">Blog</a></li>
-          </ul>
-
           <div className="nav-actions">
             <Link to="/login" className="btn-ghost">Log in</Link>
             <Link to="/signup" className="btn-primary-nav">Get started →</Link>

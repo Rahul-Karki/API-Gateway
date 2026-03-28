@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom"
 import apiClient from "@/services/apiClient"
 import { setAccessToken } from "@/utils/storage"
 import { useAuth } from "@/context/AuthContext"
-import GoogleAuthButton from "./GoogleLoginButton"
+import GoogleAuthButton from "./GoogleLoginButton.tsx"
 
 type FormData = {
   name: string

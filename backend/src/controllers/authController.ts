@@ -39,6 +39,7 @@ const signUp = async (req: Request, res: Response) => {
       name,
       email,
       password: hashedPassword,
+      authProvider: ["local"],
     });
 
     await user.save();
@@ -85,12 +86,12 @@ const login = async (req: Request, res: Response) => {
       });
     }
 
-    // 3. Check auth provider (IMPORTANT FIX)
-    if (user.authProvider === "google") {
+     if (!user.password) {
       return res.status(400).json({
-        message: "This account is registered with Google. Please login using Google.",
+        message: "This account uses Google login. Please continue with Google.",
       });
     }
+
 
     // 4. Compare password
     const isMatch = await bcrypt.compare(password, user.password!);
@@ -160,6 +161,7 @@ const googleLogin = async (req: Request, res: Response) => {
         email,
         name,
         googleId,
+        authProvider: ["google"],
       });
     }
 

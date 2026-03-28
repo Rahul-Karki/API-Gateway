@@ -6,7 +6,7 @@ import { Sparkles } from "lucide-react"
 import apiClient from "@/services/apiClient"
 import { setAccessToken } from "@/utils/storage"
 import { useAuth } from "@/context/AuthContext"
-import GoogleAuthButton from "./ui/GoogleLoginButton"
+import GoogleAuthButton from "./GoogleLoginButton"
 import { Link } from "react-router-dom"
 
 type FormData = {

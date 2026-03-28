@@ -6,7 +6,7 @@ export interface IUser extends Document {
     email: string;
     password?: string;
     googleId?: string;
-    authProvider: "local" | "google"; 
+    authProvider:string[]; 
     passwordResetAt: Date;
 }
 
@@ -36,9 +36,9 @@ const userSchema = new Schema<IUser>({
       type: Date,
     },
     authProvider: {
-      type: String,
+      type: [String],
       enum: ["local", "google"],
-      default: "local", // 👈 normal signup = local
+      default: [],
     },
 });
 

@@ -40,7 +40,6 @@ export default function FeaturesCTA() {
           </p>
           <div className="fcta-btns">
             <Link to="/signup" className="fcta-btn-main">Start free →</Link>
-            <a href="#docs" className="fcta-btn-docs">Read the docs</a>
           </div>
         </div>
       </section>

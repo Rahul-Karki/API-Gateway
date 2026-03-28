@@ -3,16 +3,17 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
 import "./global.css"
 import ProtectedRoute from "./components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import ForgotPassword from "./pages/ResetPassword";
 import FeaturesPage from "./pages/FeaturesPage";
 
+
+
 function App() {
   
-  const { loading } = useAuth();
 
   return (
     <AuthProvider>

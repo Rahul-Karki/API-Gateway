@@ -239,7 +239,6 @@ export default function HeroSection() {
             </p>
             <div className="hero-ctas">
               <Link to="/features" className="btn-hero-main">Explore features ↗</Link>
-              <a href="#docs" className="btn-hero-outline">Read the docs</a>
             </div>
           </div>
           <div className="terminal-wrap">
