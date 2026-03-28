@@ -1,8 +1,10 @@
 import axios from "axios";
 import { getAccessToken, setAccessToken, clearAccessToken } from "../utils/storage";
 
+const API = import.meta.env.VITE_API_URL;
+
 const apiClient = axios.create({
-  baseURL: "http://localhost:8080",
+  baseURL: API,
   withCredentials: true,
 });
 

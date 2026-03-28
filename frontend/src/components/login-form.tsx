@@ -96,7 +96,7 @@ export default function LoginForm() {
     try {
       setLoading(true)
 
-      await axios.post("http://localhost:8080/api/auth/forgot-password", {
+      await apiClient.post("/api/auth/forgot-password", {
         email: formData.email,
       })
 

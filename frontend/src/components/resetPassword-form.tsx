@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import axios from "axios"
+import apiClient from "@/services/apiClient"
 
 export default function ResetPasswordForm() {
   const [password, setPassword] = useState<string>("")
@@ -24,7 +25,7 @@ export default function ResetPasswordForm() {
     }
 
     try {
-      await axios.post("http://localhost:8080/api/auth/reset-password", {
+      await apiClient.post("/api/auth/reset-password", {
         token,
         password,
         confirmPassword,
