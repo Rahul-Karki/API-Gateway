@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useMemo,
   ReactNode,
 } from "react"
 import axios from "axios"
@@ -27,30 +28,33 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const res = await axios.get<{ user: User }>("/api/auth/me", {
           withCredentials: true,
         })
-
         setUser(res.data.user)
         setIsAuthenticated(true)
       } catch (error) {
         setUser(null)
         setIsAuthenticated(false)
       } finally {
-        setLoading(false) // 🔥 critical
+        setLoading(false)
       }
     }
 
     fetchUser()
   }, [])
 
+  // ✅ Only re-renders consumers when user, isAuthenticated, or loading actually changes
+  const value = useMemo(
+    () => ({
+      user,
+      isAuthenticated,
+      loading,
+      setUser,
+      setIsAuthenticated,
+    }),
+    [user, isAuthenticated, loading]
+  )
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated,
-        loading,
-        setUser,
-        setIsAuthenticated,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )
