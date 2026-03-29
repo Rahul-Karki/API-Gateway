@@ -42,6 +42,7 @@ export default function LoginForm() {
   // =========================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoading(true);
 
     if (!formData.email || !formData.password) {
       setMessage("Please enter email and password")
