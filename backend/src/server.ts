@@ -13,7 +13,7 @@ dotenv.config();
 const app = express();
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL,
+    origin: "https://api-gateway-f24gcojpd-rahulkarki0608-6003s-projects.vercel.app" ,
     credentials: true
 }))
 
