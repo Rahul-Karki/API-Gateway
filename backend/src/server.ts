@@ -12,10 +12,6 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({
-    origin: "https://api-gateway-f24gcojpd-rahulkarki0608-6003s-projects.vercel.app" ,
-    credentials: true
-}))
 
 app.use(express.json());
 app.use(cookieParser());
