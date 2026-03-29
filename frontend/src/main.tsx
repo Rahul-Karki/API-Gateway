@@ -6,13 +6,13 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "./context/AuthContext";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <AuthProvider>
-      <MantineProvider>
-        <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+  <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+    <React.StrictMode>
+      <AuthProvider>
+        <MantineProvider>
           <App />
-        </GoogleOAuthProvider>
-      </MantineProvider>
-    </AuthProvider>
-  </React.StrictMode>,
+        </MantineProvider>
+      </AuthProvider>
+    </React.StrictMode>
+  </GoogleOAuthProvider>
 );
