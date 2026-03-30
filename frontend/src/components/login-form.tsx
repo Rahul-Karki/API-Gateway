@@ -107,7 +107,7 @@ export default function LoginForm() {
       await apiClient.post("/api/auth/forgot-password", {
         email: formData.email,
       })
-
+      console.log('Forgot password request successful',formData.email);
       setMessage("Check your email for reset link")
       startTimer()
     } catch (err: any) {
