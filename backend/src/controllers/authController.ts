@@ -209,7 +209,7 @@ const forgotPassword = async (req: Request, res: Response) => {
         message: "Please provide an email",
       });
     }
-
+    console.log('1. Route hit');
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -227,7 +227,7 @@ const forgotPassword = async (req: Request, res: Response) => {
         message: "Password was recently updated. Try again later.",
       });
     }
-
+    console.log('2. User found:', !!user);
     const rawToken = crypto.randomBytes(32).toString("hex");
     const hashed = hashToken(rawToken);
 
@@ -242,16 +242,20 @@ const forgotPassword = async (req: Request, res: Response) => {
 
     await resetToken.save();
 
-    const link = `http://localhost:5173/reset-password?token=${rawToken}`;
-
+    const link = `https://api-gateway-snowy.vercel.app/reset-password?token=${rawToken}`;
+    console.log('3. Token generated');
     // Send email in background (don't wait)
     sendEmail(user.email, link).catch((err) =>
       console.error("Email send failed:", err)
     );
 
+    console.log('4. Email sent'); 
+
     res.status(200).json({
       message: "Password reset link sent to email",
     });
+    
+    console.log('5. Response sent');
   } catch (error) {
     return res.status(500).json({
       message: "Server error",
