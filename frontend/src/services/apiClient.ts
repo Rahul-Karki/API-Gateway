@@ -37,6 +37,15 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // ✅ ADD THIS: bail out on auth routes that are expected to return 401
+    const isAuthRoute =
+      originalRequest.url?.includes("/api/auth/login") ||
+      originalRequest.url?.includes("/api/auth/signup")
+
+    if (isAuthRoute) {
+      return Promise.reject(error)  // just pass error to the caller, no refresh attempt
+    }
+
     // ✅ FIX 2: Handle 401 properly
     if (error.response?.status === 401 && !originalRequest._retry) {
 
