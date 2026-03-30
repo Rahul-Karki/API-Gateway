@@ -4,6 +4,7 @@ import { getAccessToken, setAccessToken, clearAccessToken } from "../utils/stora
 const apiClient = axios.create({
   baseURL: "https://api-gateway-1-jqt8.onrender.com",
   withCredentials: true,
+  timeout: 10000, // 10 second timeout
 });
 
 let isRefreshing = false;
@@ -40,7 +41,8 @@ apiClient.interceptors.response.use(
     // ✅ ADD THIS: bail out on auth routes that are expected to return 401
     const isAuthRoute =
       originalRequest.url?.includes("/api/auth/login") ||
-      originalRequest.url?.includes("/api/auth/signup")
+      originalRequest.url?.includes("/api/auth/signup") ||
+      originalRequest.url?.includes("/api/auth/forgot-password")
 
     if (isAuthRoute) {
       return Promise.reject(error)  // just pass error to the caller, no refresh attempt
