@@ -99,6 +99,7 @@ export default function LoginForm() {
       setMessage("Please enter your email first")
       return
     }
+    setMessage("");
 
     try {
       setLoading(true)
