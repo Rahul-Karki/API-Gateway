@@ -9,9 +9,9 @@ import {
 import { AuthRequest } from "../middlewares/authMiddleware";
 import hashToken from "../utils/hashToken";
 import ResetToken from "../models/ResetToken";
-import crypto from "crypto"
-import {sendEmail} from "../utils/sendEmail"
-import { forgotPasswordTemplate } from "../utils/emailTemplate"
+import crypto from "crypto";
+import { sendEmail } from "../utils/sendEmail";
+import { forgotPasswordTemplate } from "../utils/emailTemplate";
 
 const COOLDOWN_AFTER_RESET = 5 * 60 * 1000; // 5 min
 
@@ -56,9 +56,18 @@ const signUp = async (req: Request, res: Response) => {
       sameSite: "strict",
     });
 
+    res.cookie(
+      "accessToken",
+      accessToken, // ← add this
+      {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+      },
+    );
+
     return res.status(201).json({
       message: "User registered successfully",
-      accessToken,
     });
   } catch (error) {
     return res.status(500).json({
@@ -87,12 +96,11 @@ const login = async (req: Request, res: Response) => {
       });
     }
 
-     if (!user.password) {
+    if (!user.password) {
       return res.status(400).json({
         message: "This account uses Google login. Please continue with Google.",
       });
     }
-
 
     // 4. Compare password
     const isMatch = await bcrypt.compare(password, user.password!);
@@ -114,16 +122,24 @@ const login = async (req: Request, res: Response) => {
       sameSite: "strict",
     });
 
+    res.cookie(
+      "accessToken",
+      accessToken, // ← add this
+      {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+      },
+    );
+
     // 7. Send response
     res.status(200).json({
-      accessToken,
       user: {
         id: user._id,
         email: user.email,
         name: user.name,
       },
     });
-
   } catch (error) {
     console.error(error); // 👈 always log errors
     res.status(500).json({
@@ -131,7 +147,6 @@ const login = async (req: Request, res: Response) => {
     });
   }
 };
-
 
 const googleLogin = async (req: Request, res: Response) => {
   try {
@@ -149,7 +164,7 @@ const googleLogin = async (req: Request, res: Response) => {
     const email = payload.email;
     const name = payload.name;
     const googleId = payload.sub;
-  
+
     if (user) {
       // 3. Link Google account if not linked
       if (!user.googleId) {
@@ -175,33 +190,40 @@ const googleLogin = async (req: Request, res: Response) => {
       sameSite: "lax",
     });
 
+    res.cookie(
+      "accessToken",
+      accessToken, // ← add this
+      {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+      },
+    );
+
     return res.json({
       user,
       message: "Google login successful",
-      accessToken,
     });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Server error" });
   }
-}
+};
 
-const getMe = async(req : AuthRequest , res: Response) => {
-  try{
+const getMe = async (req: AuthRequest, res: Response) => {
+  try {
     // req.user is set by your authMiddleware
     res.status(200).json({
       user: req.user,
     });
-  }catch(err){
+  } catch (err) {
     res.status(500).json({
-        message: "Server error"
-      } 
-    )
+      message: "Server error",
+    });
   }
-}
+};
 
 const forgotPassword = async (req: Request, res: Response) => {
-
   try {
     const { email } = req.body;
 
@@ -210,7 +232,7 @@ const forgotPassword = async (req: Request, res: Response) => {
         message: "Please provide an email",
       });
     }
-    console.log('1. Route hit');
+    console.log("1. Route hit");
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -219,16 +241,16 @@ const forgotPassword = async (req: Request, res: Response) => {
       });
     }
 
-
     if (
       user.passwordResetAt &&
-      Date.now() - new Date(user.passwordResetAt).getTime() < COOLDOWN_AFTER_RESET
+      Date.now() - new Date(user.passwordResetAt).getTime() <
+        COOLDOWN_AFTER_RESET
     ) {
       return res.status(429).json({
         message: "Password was recently updated. Try again later.",
       });
     }
-    console.log('2. User found:', !!user);
+    console.log("2. User found:", !!user);
     const rawToken = crypto.randomBytes(32).toString("hex");
     const hashed = hashToken(rawToken);
 
@@ -244,28 +266,27 @@ const forgotPassword = async (req: Request, res: Response) => {
     await resetToken.save();
 
     const link = `https://api-gateway-snowy.vercel.app/reset-password?token=${rawToken}`;
-    console.log('3. Token generated');
+    console.log("3. Token generated");
     // Send email in background (don't wait)
-     sendEmail({
+    sendEmail({
       to: "rahulkarki0608@gmail.com",
-      subject: 'Password Reset Request',
+      subject: "Password Reset Request",
       html: forgotPasswordTemplate(link),
-    }).catch(err => console.error('Background email error:', err));
+    }).catch((err) => console.error("Background email error:", err));
 
-
-    console.log('4. Email sent'); 
+    console.log("4. Email sent");
 
     res.status(200).json({
       message: "Password reset link sent to email",
     });
 
-    console.log('5. Response sent');
+    console.log("5. Response sent");
   } catch (error) {
     return res.status(500).json({
       message: "Server error",
     });
   }
-}
+};
 
 const resetPassword = async (req: Request, res: Response) => {
   try {
@@ -282,7 +303,6 @@ const resetPassword = async (req: Request, res: Response) => {
         message: "Passwords do not match",
       });
     }
-
 
     const hashed = hashToken(token);
 
@@ -345,7 +365,8 @@ const resendResetLink = async (req: Request, res: Response) => {
 
     if (!existingToken) {
       return res.status(400).json({
-        message: "No reset request found, please initiate forgot password again",
+        message:
+          "No reset request found, please initiate forgot password again",
       });
     }
 
@@ -357,7 +378,8 @@ const resendResetLink = async (req: Request, res: Response) => {
 
     if (
       user.passwordResetAt &&
-      Date.now() - new Date(user.passwordResetAt).getTime() < COOLDOWN_AFTER_RESET
+      Date.now() - new Date(user.passwordResetAt).getTime() <
+        COOLDOWN_AFTER_RESET
     ) {
       return res.status(429).json({
         message: "Password was recently updated. Try again later.",
@@ -379,11 +401,11 @@ const resendResetLink = async (req: Request, res: Response) => {
     await existingToken.save();
 
     const link = `https://api-gateway-snowy.vercel.app/reset-password?token=${rawToken}`;
-   sendEmail({
+    sendEmail({
       to: "rahulkarki0608@gmail.com",
-      subject: 'Password Reset Request',
+      subject: "Password Reset Request",
       html: forgotPasswordTemplate(link),
-    }).catch(err => console.error('Background email error:', err));
+    }).catch((err) => console.error("Background email error:", err));
 
     res.status(200).json({
       message: "Password reset link resent to email",
@@ -393,7 +415,14 @@ const resendResetLink = async (req: Request, res: Response) => {
       message: "Server error",
     });
   }
-}
+};
 
-
-export { signUp, login , googleLogin , getMe , forgotPassword , resetPassword , resendResetLink };
+export {
+  signUp,
+  login,
+  googleLogin,
+  getMe,
+  forgotPassword,
+  resetPassword,
+  resendResetLink,
+};
