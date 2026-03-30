@@ -8,7 +8,7 @@ export interface AuthRequest extends Request {
 
 const cookieMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const token = req.cookies.token  // ← read from cookie, not header
+    const token = req.cookies.accessToken  // ← read the accessToken cookie
 
     if (!token) {
       return res.status(401).json({ message: "Access token missing" })
