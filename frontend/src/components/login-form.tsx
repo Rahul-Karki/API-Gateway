@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import axios from "axios"
 import { Sparkles } from "lucide-react"
@@ -42,16 +42,16 @@ export default function LoginForm() {
   // =========================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true);
 
     if (!formData.email || !formData.password) {
       setMessage("Please enter email and password")
       return
     }
 
-    try {
-      setLoading(true)
+    setLoading(true);
+    setMessage("");
 
+    try {
       const res = await apiClient.post("/api/auth/login", formData)
 
       setAccessToken(res.data.accessToken)
@@ -73,17 +73,23 @@ export default function LoginForm() {
   // =========================
   const startTimer = () => {
     setTimer(60)
+  }
 
-    const interval = setInterval(() => {
+  useEffect(() => {
+    if (timer === 0) return
+
+    const id = setInterval(() => {
       setTimer((prev) => {
         if (prev <= 1) {
-          clearInterval(interval)
+          clearInterval(id)
           return 0
         }
         return prev - 1
       })
     }, 1000)
-  }
+
+    return () => clearInterval(id)
+  }, [timer])
 
   // =========================
   // FORGOT PASSWORD
