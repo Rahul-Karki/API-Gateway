@@ -244,7 +244,10 @@ const forgotPassword = async (req: Request, res: Response) => {
 
     const link = `http://localhost:5173/reset-password?token=${rawToken}`;
 
-    await sendEmail(user.email, link);
+    // Send email in background (don't wait)
+    sendEmail(user.email, link).catch((err) =>
+      console.error("Email send failed:", err)
+    );
 
     res.status(200).json({
       message: "Password reset link sent to email",
