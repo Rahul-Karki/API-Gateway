@@ -8,9 +8,9 @@ export interface AuthRequest extends Request {
 
 const cookieMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const token = req.cookies.accessToken  // ← read the accessToken cookie
+    const token = req.cookies?.accessToken  // ← read the accessToken cookie
 
-    if (!token) {
+    if (!token || typeof token !== 'string') {
       return res.status(401).json({ message: "Access token missing" })
     }
 
@@ -21,7 +21,8 @@ const cookieMiddleware = (req: AuthRequest, res: Response, next: NextFunction) =
 
     req.user = decoded
     next()
-  } catch (error) {
+  } catch (error: any) {
+    console.error("Auth error:", error.message)
     return res.status(403).json({ message: "Invalid access token" })
   }
 }
