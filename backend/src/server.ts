@@ -6,7 +6,6 @@ import authRouter from './routers/auth.route';
 import productRouter from './routers/product.route';
 import { connectDB } from './config/db';
 import jwt from 'jsonwebtoken';
-import cors from 'cors';
 import refreshRouter from './routers/refresh.route';
 import cookieParser from 'cookie-parser';
 
