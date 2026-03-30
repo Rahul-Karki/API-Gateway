@@ -11,6 +11,7 @@ import hashToken from "../utils/hashToken";
 import ResetToken from "../models/ResetToken";
 import crypto from "crypto"
 import {sendEmail} from "../utils/sendEmail"
+import { forgotPasswordTemplate } from "../utils/emailTemplate"
 
 const COOLDOWN_AFTER_RESET = 5 * 60 * 1000; // 5 min
 
@@ -245,16 +246,19 @@ const forgotPassword = async (req: Request, res: Response) => {
     const link = `https://api-gateway-snowy.vercel.app/reset-password?token=${rawToken}`;
     console.log('3. Token generated');
     // Send email in background (don't wait)
-    sendEmail(user.email, link).catch((err) =>
-      console.error("Email send failed:", err)
-    );
+     sendEmail({
+      to: user.email,
+      subject: 'Password Reset Request',
+      html: forgotPasswordTemplate(link),
+    }).catch(err => console.error('Background email error:', err));
+
 
     console.log('4. Email sent'); 
 
     res.status(200).json({
       message: "Password reset link sent to email",
     });
-    
+
     console.log('5. Response sent');
   } catch (error) {
     return res.status(500).json({
@@ -374,8 +378,12 @@ const resendResetLink = async (req: Request, res: Response) => {
 
     await existingToken.save();
 
-    const link = `http://localhost:5173/reset-password?token=${rawToken}`;
-    await sendEmail(user.email, link);
+    const link = `https://api-gateway-snowy.vercel.app/reset-password?token=${rawToken}`;
+   sendEmail({
+      to: user.email,
+      subject: 'Password Reset Request',
+      html: forgotPasswordTemplate(link),
+    }).catch(err => console.error('Background email error:', err));
 
     res.status(200).json({
       message: "Password reset link resent to email",
