@@ -4,7 +4,6 @@ import axios from "axios"
 import { Sparkles } from "lucide-react"
 
 import apiClient from "@/services/apiClient"
-import { setAccessToken } from "@/utils/storage"
 import { useAuth } from "@/context/AuthContext"
 import GoogleAuthButton from "./GoogleLoginButton"
 import { Link } from "react-router-dom"
@@ -52,9 +51,7 @@ export default function LoginForm() {
     setMessage("");
 
     try {
-      const res = await apiClient.post("/api/auth/login", formData)
-
-      setAccessToken(res.data.accessToken)
+    await apiClient.post("/api/auth/login", formData)
 
       const userRes = await apiClient.get("/api/auth/me")
       setUser(userRes.data.user)

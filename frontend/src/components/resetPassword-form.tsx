@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import axios from "axios"
 import apiClient from "@/services/apiClient"
 
 export default function ResetPasswordForm() {

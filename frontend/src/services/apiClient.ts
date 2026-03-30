@@ -1,5 +1,4 @@
 import axios from "axios";
-import { getAccessToken, setAccessToken, clearAccessToken } from "../utils/storage";
 
 const apiClient = axios.create({
   baseURL: "https://api-gateway-1-jqt8.onrender.com",
@@ -18,12 +17,6 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-// ✅ Attach token
-apiClient.interceptors.request.use((config) => {
-  const token = getAccessToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
 
 // ✅ Handle response
 apiClient.interceptors.response.use(
@@ -33,7 +26,6 @@ apiClient.interceptors.response.use(
 
     // ✅ FIX 1: Correct refresh URL check
     if (originalRequest.url?.includes("/api/refresh")) {
-      clearAccessToken();
       window.location.href = "/login";
       return Promise.reject(error);
     }
@@ -56,7 +48,6 @@ apiClient.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then((token: any) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
           return apiClient(originalRequest);
         });
       }
@@ -68,17 +59,12 @@ apiClient.interceptors.response.use(
         // ✅ FIX 3: Use apiClient (not axios)
         const res = await apiClient.post("/api/refresh");
 
-        const newToken = res.data.accessToken;
-        setAccessToken(newToken);
+        processQueue(null);
 
-        processQueue(null, newToken);
-
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(originalRequest);
 
       } catch (err) {
         processQueue(err, null);
-        clearAccessToken();
         window.location.href = "/login";
         return Promise.reject(err);
       } finally {

@@ -2,10 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import apiClient from "@/services/apiClient";
-import { setAccessToken } from "@/utils/storage";
 import { useAuth } from "@/context/AuthContext";
 import GoogleAuthButton from "./GoogleLoginButton.tsx";
-import { useEffect } from "react";
 import {} from "react-router-dom";
 
 type FormData = {
@@ -17,7 +15,7 @@ type FormData = {
 
 export default function SignupForm() {
   const navigate = useNavigate();
-  const { setUser , user } = useAuth();
+  const { setUser  } = useAuth();
 
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -28,13 +26,7 @@ export default function SignupForm() {
 
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
-  const [signupSuccess, setSignupSuccess] = useState(false);
 
-  useEffect(() => {
-    if (signupSuccess && user) {
-      navigate("/home");
-    }
-  }, [user, signupSuccess]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
@@ -59,16 +51,16 @@ export default function SignupForm() {
     try {
       setLoading(true);
 
-      const res = await apiClient.post("/api/auth/signup", {
+      await apiClient.post("/api/auth/signup", {
         name: formData.name,
         email: formData.email,
         password: formData.password,
       });
 
-      setAccessToken(res.data.accessToken);
       const userRes = await apiClient.get("/api/auth/me");
       setUser(userRes.data.user);
-      setSignupSuccess(true); // triggers the useEffect above
+      navigate("/home");
+     
     } catch (err: any) {
       setMessage(err.response?.data?.message || "Signup failed");
     } finally {
