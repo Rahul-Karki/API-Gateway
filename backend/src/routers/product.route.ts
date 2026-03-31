@@ -6,7 +6,7 @@ import { cookieMiddleware } from '../middlewares/cookieMiddleware';
 
 const router = express.Router();    
 
-router.use(cookieMiddleware);
+//router.use(cookieMiddleware);
 
 router.get('/all', getAllProducts);
 router.get('/:productId',getProductByID);
