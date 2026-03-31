@@ -6,8 +6,8 @@ import {
   useMemo,
   ReactNode,
 } from "react"
-import axios from "axios"
 import { AuthContextType , User } from "@/types/auth"
+import apiClient from "@/services/apiClient"
 
 // ✅ createContext with undefined (safe pattern)
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await axios.get<{ user: User }>("/api/auth/me", {
+        const res = await apiClient.get<{ user: User }>("/api/auth/me", {
           withCredentials: true,
         })
         setUser(res.data.user)
