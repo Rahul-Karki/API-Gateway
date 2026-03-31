@@ -5,14 +5,7 @@ import { Product } from "../models/Products";
 
 const createProduct = async ( req: AuthRequest , res: Response) => {
     try{
-        const userId = req.user?.userId;
         const { name, description, price, category } = req.body;
-
-        if(!userId){
-            return res.status(401).json({
-                message: "Unauthorized"
-            });
-        }
 
          if (!name || !price || !category) {        
             return res.status(400).json({
@@ -42,13 +35,6 @@ const createProduct = async ( req: AuthRequest , res: Response) => {
 
 const getAllProducts = async ( req: AuthRequest , res: Response) => {
     try{
-       const userId = req.user?.userId;
-
-       if(!userId){
-        return res.status(401).json({
-            message: "Unauthorized"
-        });
-       }
 
        const products = await Product.find({});       
     
@@ -66,15 +52,8 @@ const getAllProducts = async ( req: AuthRequest , res: Response) => {
 
 const updateProduct = async ( req: AuthRequest , res: Response) => {
     try{
-        const userId = req.user?.userId;
-        const { productId } = req.params;
-        const { name, description, price, category } = req.body;      
 
-        if(!userId){
-            return res.status(401).json({
-                message: "Unauthorized"
-            });
-        }   
+        const { productId } = req.params;
 
         const product = await Product.findById(productId);
 
@@ -102,14 +81,8 @@ const updateProduct = async ( req: AuthRequest , res: Response) => {
 
 const deleteProduct = async ( req: AuthRequest , res: Response) => {
     try{
-        const userId = req.user?.userId;
         const { productId } = req.params;
 
-        if(!userId){
-            return res.status(401).json({
-                message: "Unauthorized"
-            });
-        }
 
         const product = await Product.findById(productId);
 
@@ -135,14 +108,7 @@ const deleteProduct = async ( req: AuthRequest , res: Response) => {
 const getProductByID = async(req : AuthRequest , res: Response) => {
     try{
         console.log("getProductByID called with:", req.params)
-        const userId = req.user?.userId;
         const { productId } = req.params;
-
-        if(!userId){
-            return res.status(401).json({
-                message: "Unauthorized"
-            });
-        }
         
         const product = await Product.findById(productId);
 
@@ -164,15 +130,8 @@ const getProductByID = async(req : AuthRequest , res: Response) => {
 
 const updateSpecificField = async ( req: AuthRequest , res: Response) => {
     try{
-        const userId = req.user?.userId;
         const { productId } = req.params;
         const { fieldName, fieldValue } = req.body;
-
-        if(!userId){
-            return res.status(401).json({
-                message: "Unauthorized"
-            });
-        }   
 
         const product = await Product.findById(productId);
 
