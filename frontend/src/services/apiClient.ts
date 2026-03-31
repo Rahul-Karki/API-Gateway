@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const apiClient = axios.create({
-  baseURL: "https://api-gateway-1-jqt8.onrender.com",
+  baseURL: "https://gateway-7dsr.onrender.com",
   withCredentials: true,
   timeout: 10000, // 10 second timeout
 });
