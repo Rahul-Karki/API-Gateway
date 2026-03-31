@@ -9,10 +9,10 @@ router.post("/signup",signUp);
 router.post('/login',login);
 router.post("/google-login",googleLogin);
 
-router.get("/me",cookieMiddleware,getMe);
-
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 router.post("/resend",resendResetLink);
+
+router.get("/me", cookieMiddleware, getMe);
 
 export default router;
