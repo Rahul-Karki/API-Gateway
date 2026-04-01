@@ -10,7 +10,6 @@ export default function ResetPasswordForm() {
   const [message, setMessage] = useState<string>("")
   const [showPassword, setShowPassword] = useState<boolean>(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false)
-  const [passwordStrength] = useState<number>(0)
 
   const navigate = useNavigate()
   const token = new URLSearchParams(useLocation().search).get("token")
@@ -98,41 +97,6 @@ export default function ResetPasswordForm() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            
-            {/* Password Strength Meter */}
-            {password && (
-              <div style={{ marginTop: "8px" }}>
-                <div style={{ display: "flex", gap: "4px", marginBottom: "4px" }}>
-                  {[1, 2, 3, 4].map((level) => (
-                    <div
-                      key={level}
-                      style={{
-                        height: "4px",
-                        flex: 1,
-                        borderRadius: "2px",
-                        background:
-                          level <= passwordStrength
-                            ? passwordStrength === 1
-                              ? "#ef4444"
-                              : passwordStrength === 2
-                              ? "#f97316"
-                              : passwordStrength === 3
-                              ? "#eab308"
-                              : "#22c55e"
-                            : "#e5e7eb",
-                        transition: "all 0.3s ease",
-                      }}
-                    />
-                  ))}
-                </div>
-                <div style={{ fontSize: "12px", color: "#4a5568" }}>
-                  {passwordStrength === 1 && "Weak password"}
-                  {passwordStrength === 2 && "Fair password"}
-                  {passwordStrength === 3 && "Good password"}
-                  {passwordStrength === 4 && "✓ Strong password"}
-                </div>
-              </div>
-            )}
             
             <span className="field-hint">
               Must be: 8+ chars, uppercase, lowercase, number, symbol (@$!%*?&)
