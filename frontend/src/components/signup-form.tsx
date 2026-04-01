@@ -50,16 +50,18 @@ export default function SignupForm() {
       return;
     }
 
-    if (!isStrongPassword(formData.password)) {
-      setMessage("Password must contain uppercase, lowercase, number, and special character");
-      return;
-    }
-
     if (formData.password !== formData.confirmPassword) {
       setMessage("Passwords do not match");
       return;
     }
 
+
+    if (!isStrongPassword(formData.password)) {
+      setMessage("Password must contain uppercase, lowercase, number, and special character");
+      return;
+    }
+
+    
     try {
       setLoading(true);
 
