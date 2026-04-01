@@ -21,16 +21,18 @@ export default function ResetPasswordForm() {
       setMessage("Please enter password of atleast 8 characters")
       return
     }
+    
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match")
+      return
+    }
 
     if (!isStrongPassword(password)) {
       setMessage("Password must contain uppercase, lowercase, number, and special character (@$!%*?&)")
       return
     }
 
-    if (password !== confirmPassword) {
-      setMessage("Passwords do not match")
-      return
-    }
+    
 
     try {
       await apiClient.post("/api/auth/reset-password", {
