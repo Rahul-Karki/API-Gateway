@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { Sparkles } from "lucide-react"
+import { Sparkles, Eye, EyeOff } from "lucide-react"
 import { toast } from "react-toastify"
 
 import apiClient from "@/services/apiClient"
@@ -25,6 +25,7 @@ export default function LoginForm() {
   const [message, setMessage] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
   const [timer, setTimer] = useState<number>(0)
+  const [showPassword, setShowPassword] = useState<boolean>(false)
 
   // =========================
   // INPUT CHANGE
@@ -167,12 +168,33 @@ export default function LoginForm() {
               </button>
             </div>
 
-            <input
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-            />
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={handleChange}
+                style={{ width: "100%", paddingRight: "40px" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#4a5568",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0",
+                }}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {/* MESSAGE */}
