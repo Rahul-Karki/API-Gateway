@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Sparkles, Eye, EyeOff } from "lucide-react"
-import { toast } from "react-toastify"
 
 import apiClient from "@/services/apiClient"
 import { useAuth } from "@/context/AuthContext"
@@ -44,7 +43,6 @@ export default function LoginForm() {
     e.preventDefault()
 
     if (!formData.email || !formData.password) {
-      toast.error("Please enter email and password")
       setMessage("Please enter email and password")
       return
     }
@@ -58,13 +56,10 @@ export default function LoginForm() {
       const userRes = await apiClient.get("/api/auth/me")
       setUser(userRes.data.user)
 
-      toast.success("Login successful! Redirecting...")
       setMessage("Login successful")
       navigate("/home")
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "Login failed"
-      toast.error(errorMsg)
-      setMessage(errorMsg)
+      setMessage(err.response?.data?.message || "Login failed")
     } finally {
       setLoading(false)
     }
@@ -98,7 +93,6 @@ export default function LoginForm() {
   // =========================
   const handleForgotPassword = async () => {
     if (!formData.email) {
-      toast.error("Please enter your email first")
       setMessage("Please enter your email first")
       return
     }
@@ -111,13 +105,10 @@ export default function LoginForm() {
         email: formData.email,
       })
       console.log('Forgot password request successful',formData.email);
-      toast.info("Check your email for reset link")
       setMessage("Check your email for reset link")
       startTimer()
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "Something went wrong"
-      toast.error(errorMsg)
-      setMessage(errorMsg)
+      setMessage(err.response?.data?.message || "Something went wrong")
     } finally {
       setLoading(false)
     }

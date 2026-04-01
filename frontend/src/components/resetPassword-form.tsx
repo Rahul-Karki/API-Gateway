@@ -1,7 +1,6 @@
 import { useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { Eye, EyeOff } from "lucide-react"
-import { toast } from "react-toastify"
 import apiClient from "@/services/apiClient"
 
 export default function ResetPasswordForm() {
@@ -18,13 +17,11 @@ export default function ResetPasswordForm() {
     e.preventDefault()
 
     if (password.length < 8) {
-      toast.error("Please enter password of atleast 8 characters")
       setMessage("Please enter password of atleast 8 characters")
       return
     }
 
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match")
       setMessage("Passwords do not match")
       return
     }
@@ -36,14 +33,12 @@ export default function ResetPasswordForm() {
         confirmPassword,
       })
 
-      toast.success("Password updated successfully! Redirecting to login...")
       setMessage("Password updated successfully")
 
       setTimeout(() => {
         navigate("/login")
       }, 1500)
     } catch (err) {
-      toast.error("Invalid or expired link")
       setMessage("Invalid or expired link")
     }
   }
