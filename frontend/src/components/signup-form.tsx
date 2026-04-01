@@ -6,7 +6,6 @@ import apiClient from "@/services/apiClient";
 import { useAuth } from "@/context/AuthContext";
 import GoogleAuthButton from "./GoogleLoginButton.tsx";
 import { isStrongPassword } from "@/utils/regex";
-import { getPasswordStrength } from "@/utils/strength";
 import {} from "react-router-dom";
 
 type FormData = {
@@ -31,7 +30,7 @@ export default function SignupForm() {
   const [message, setMessage] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
-  const [passwordStrength, setPasswordStrength] = useState<number>(0);
+  const [passwordStrength] = useState<number>(0);
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,10 +40,6 @@ export default function SignupForm() {
       [name]: value,
     }));
     
-    // Update password strength when password field changes
-    if (name === "password") {
-      setPasswordStrength(getPasswordStrength(value));
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

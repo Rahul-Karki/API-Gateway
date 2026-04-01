@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from "react-router-dom"
 import { Eye, EyeOff } from "lucide-react"
 import apiClient from "@/services/apiClient"
 import { isStrongPassword } from "@/utils/regex"
-import { getPasswordStrength } from "@/utils/strength"
 
 export default function ResetPasswordForm() {
   const [password, setPassword] = useState<string>("")
@@ -11,7 +10,7 @@ export default function ResetPasswordForm() {
   const [message, setMessage] = useState<string>("")
   const [showPassword, setShowPassword] = useState<boolean>(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false)
-  const [passwordStrength, setPasswordStrength] = useState<number>(0)
+  const [passwordStrength] = useState<number>(0)
 
   const navigate = useNavigate()
   const token = new URLSearchParams(useLocation().search).get("token")
@@ -75,7 +74,6 @@ export default function ResetPasswordForm() {
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
-                  setPasswordStrength(getPasswordStrength(e.target.value));
                 }}
                 required
                 style={{ width: "100%", paddingRight: "40px" }}
