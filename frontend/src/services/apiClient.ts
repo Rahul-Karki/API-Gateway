@@ -1,4 +1,5 @@
 import axios from "axios";
+import { showToast } from "@/utils/toastNotifier";
 
 const apiClient = axios.create({
   baseURL: "https://gateway-7dsr.onrender.com",
@@ -65,11 +66,21 @@ apiClient.interceptors.response.use(
 
       } catch (err) {
         processQueue(err, null);
+        showToast.error("Session expired. Please login again.");
         window.location.href = "/login";
         return Promise.reject(err);
       } finally {
         isRefreshing = false;
       }
+    }
+
+    // ✅ Show toast for network/other errors
+    if (error.response?.status === 429) {
+      showToast.warning("Rate limited. Please try again shortly.");
+    } else if (error.code === "ECONNABORTED") {
+      showToast.error("Request timeout. Please check your connection.");
+    } else if (!error.response) {
+      showToast.error("Network error. Please check your connection.");
     }
 
     return Promise.reject(error);
