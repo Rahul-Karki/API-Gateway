@@ -1,7 +1,7 @@
 import express from  "express";
 import { Router } from "express";
-import { getMe, googleLogin, login, signUp , forgotPassword , resendResetLink , resetPassword } from "../controllers/authController";
-import { cookieMiddleware } from "../middlewares/cookieMiddleware";
+import { getMe, googleLogin, login, signUp , forgotPassword , resendResetLink , resetPassword } from "../controller/authController";
+import { authMiddleware } from "../middlewares/authMiddleware";
 
 const router = express.Router();
 
@@ -13,6 +13,6 @@ router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 router.post("/resend",resendResetLink);
 
-router.get("/me", cookieMiddleware, getMe);
+router.get("/me", authMiddleware, getMe);
 
 export default router;

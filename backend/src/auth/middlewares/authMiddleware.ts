@@ -1,12 +1,11 @@
 import { Request, Response, NextFunction } from "express"
 import jwt from "jsonwebtoken"
-import cookieParser from "cookie-parser" // make sure this is in app.ts
 
 export interface AuthRequest extends Request {
   user?: { userId: string }
 }
 
-const cookieMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const token = req.cookies?.accessToken
     
@@ -37,4 +36,4 @@ const cookieMiddleware = (req: AuthRequest, res: Response, next: NextFunction) =
   }
 }
 
-export { cookieMiddleware }
+export { authMiddleware }

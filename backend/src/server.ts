@@ -2,11 +2,11 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
-import authRouter from './routers/auth.route';
-import productRouter from './routers/product.route';
+import authRouter from './auth/routers/auth.route';
+import productRouter from './products/router/product.route';
 import { connectDB } from './config/db';
 import jwt from 'jsonwebtoken';
-import refreshRouter from './routers/refresh.route';
+import refreshRouter from './auth/routers/refresh.route';
 import cookieParser from 'cookie-parser';
 
 const app = express();

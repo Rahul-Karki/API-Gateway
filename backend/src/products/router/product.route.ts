@@ -1,8 +1,7 @@
 import express from 'express';
 import { Router } from 'express';
-import { authMiddleware } from '../middlewares/authMiddleware';
-import { createProduct, getAllProducts, updateProduct , deleteProduct, getProductByID, updateSpecificField } from '../controllers/productController';
-import { cookieMiddleware } from '../middlewares/cookieMiddleware';
+import { createProduct, getAllProducts, updateProduct , deleteProduct, getProductByID, updateSpecificField } from "../controller/productController";
+
 
 const router = express.Router();    
 

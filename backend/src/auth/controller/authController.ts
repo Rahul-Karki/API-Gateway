@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { User } from "../models/User";
-import { verifyGoogleToken } from "../utils/google";
+import { verifyGoogleToken } from "../providers/google";
 import bcrypt from "bcrypt";
 import {
   generateAccessToken,
@@ -405,7 +405,7 @@ const resendResetLink = async (req: Request, res: Response) => {
       to: "rahulkarki0608@gmail.com",
       subject: "Password Reset Request",
       html: forgotPasswordTemplate(link),
-    }).catch((err) => console.error("Background email error:", err));
+    }).catch((err : any) => console.error("Background email error:", err));
 
     res.status(200).json({
       message: "Password reset link resent to email",

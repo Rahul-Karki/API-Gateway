@@ -1,6 +1,6 @@
 import express from  "express";
 import { Router } from "express";
-import { refreshAccessToken } from "../controllers/refreshController";
+import { refreshAccessToken } from "../controller/refreshController";
 
 
 const router = express.Router();

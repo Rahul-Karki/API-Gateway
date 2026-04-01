@@ -1,9 +1,9 @@
-import { Response } from "express";
-import { AuthRequest } from "../middlewares/authMiddleware";
+import { Request , Response } from "express";
+
 import { Product } from "../models/Products";
 
 
-const createProduct = async ( req: AuthRequest , res: Response) => {
+const createProduct = async ( req: Request , res: Response) => {
     try{
         const { name, description, price, category } = req.body;
 
@@ -33,7 +33,7 @@ const createProduct = async ( req: AuthRequest , res: Response) => {
     }
 }
 
-const getAllProducts = async ( req: AuthRequest , res: Response) => {
+const getAllProducts = async ( req: Request , res: Response) => {
     try{
 
        const products = await Product.find({});       
@@ -50,7 +50,7 @@ const getAllProducts = async ( req: AuthRequest , res: Response) => {
     }
 }
 
-const updateProduct = async ( req: AuthRequest , res: Response) => {
+const updateProduct = async ( req: Request , res: Response) => {
     try{
 
         const { productId } = req.params;
@@ -79,7 +79,7 @@ const updateProduct = async ( req: AuthRequest , res: Response) => {
     }   
 }
 
-const deleteProduct = async ( req: AuthRequest , res: Response) => {
+const deleteProduct = async ( req: Request , res: Response) => {
     try{
         const { productId } = req.params;
 
@@ -105,7 +105,7 @@ const deleteProduct = async ( req: AuthRequest , res: Response) => {
     }
 } 
 
-const getProductByID = async(req : AuthRequest , res: Response) => {
+const getProductByID = async(req : Request , res: Response) => {
     try{
         console.log("getProductByID called with:", req.params)
         const { productId } = req.params;
@@ -128,7 +128,7 @@ const getProductByID = async(req : AuthRequest , res: Response) => {
     }   
 }
 
-const updateSpecificField = async ( req: AuthRequest , res: Response) => {
+const updateSpecificField = async ( req: Request , res: Response) => {
     try{
         const { productId } = req.params;
         const { fieldName, fieldValue } = req.body;
