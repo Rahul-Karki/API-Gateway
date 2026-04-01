@@ -1,5 +1,4 @@
 import axios from "axios";
-import toast from "react-hot-toast";
 
 const apiClient = axios.create({
   baseURL: "https://gateway-7dsr.onrender.com",
@@ -66,21 +65,11 @@ apiClient.interceptors.response.use(
 
       } catch (err) {
         processQueue(err, null);
-        toast.error("Session expired. Please login again.");
         window.location.href = "/login";
         return Promise.reject(err);
       } finally {
         isRefreshing = false;
       }
-    }
-
-    // ✅ Show toast for network/other errors
-    if (error.response?.status === 429) {
-      toast.error("Rate limited. Please try again shortly.");
-    } else if (error.code === "ECONNABORTED") {
-      toast.error("Request timeout. Please check your connection.");
-    } else if (!error.response) {
-      toast.error("Network error. Please check your connection.");
     }
 
     return Promise.reject(error);

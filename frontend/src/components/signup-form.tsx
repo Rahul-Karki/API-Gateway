@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
-import toast from "react-hot-toast";
 
 import apiClient from "@/services/apiClient";
 import { useAuth } from "@/context/AuthContext";
@@ -43,13 +42,11 @@ export default function SignupForm() {
     e.preventDefault();
 
     if (formData.password.length < 8) {
-      toast.error("Password must be at least 8 characters long");
       setMessage("Password must be at least 8 characters long");
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
       setMessage("Passwords do not match");
       return;
     }
@@ -65,13 +62,10 @@ export default function SignupForm() {
 
       const userRes = await apiClient.get("/api/auth/me");
       setUser(userRes.data.user);
-      toast.success("Account created successfully! Redirecting...");
       navigate("/home");
      
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "Signup failed";
-      toast.error(errorMsg);
-      setMessage(errorMsg);
+      setMessage(err.response?.data?.message || "Signup failed");
     } finally {
       setLoading(false);
     }
