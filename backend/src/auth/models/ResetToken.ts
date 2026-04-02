@@ -6,6 +6,8 @@ export interface IResetToken extends Document {
   expiresAt: Date;
   resendCount: number;
   lastSeenAt: Date;
+  createdAt: Date;  
+  updatedAt: Date;  
 }
 
 const resetTokenSchema = new Schema<IResetToken>({
@@ -14,6 +16,6 @@ const resetTokenSchema = new Schema<IResetToken>({
   expiresAt: { type: Date, required: true },
   resendCount: { type: Number, default: 0 },
   lastSeenAt: { type: Date, default: Date.now }
-});
+},{ timestamps: true });
 
 export default mongoose.model<IResetToken>("ResetToken", resetTokenSchema);

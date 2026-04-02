@@ -13,12 +13,13 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { trace, metrics, context, SpanStatusCode } from '@opentelemetry/api';
 import pino from 'pino';
+import pinoLoki from 'pino-loki';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const GRAFANA_OTLP_ENDPOINT = process.env.GRAFANA_OTLP_ENDPOINT!;     // e.g. https://otlp-gateway-prod-us-east-0.grafana.net/otlp
-const GRAFANA_INSTANCE_ID  = process.env.GRAFANA_INSTANCE_ID!;         // Grafana Cloud stack ID
-const GRAFANA_API_TOKEN    = process.env.GRAFANA_API_TOKEN!;            // Grafana Cloud API token
+const GRAFANA_OTLP_ENDPOINT = process.env.GRAFANA_OTLP_ENDPOINT!;
+const GRAFANA_INSTANCE_ID  = process.env.GRAFANA_INSTANCE_ID!;
+const GRAFANA_API_TOKEN    = process.env.GRAFANA_API_TOKEN!;
 const SERVICE_NAME         = process.env.SERVICE_NAME || 'my-backend';
 const SERVICE_VERSION      = process.env.SERVICE_VERSION || '1.0.0';
 const NODE_ENV             = process.env.NODE_ENV || 'production';
@@ -38,6 +39,7 @@ const resource = new Resource({
   [ATTR_SERVICE_VERSION]: SERVICE_VERSION,
   'deployment.environment': NODE_ENV,
 });
+
 // ─── Metrics (Prometheus / OTLP → Grafana Cloud) ────────────────────────────
 
 const metricExporter = new OTLPMetricExporter({
@@ -50,7 +52,7 @@ export const meterProvider = new MeterProvider({
   readers: [
     new PeriodicExportingMetricReader({
       exporter: metricExporter,
-      exportIntervalMillis: 15_000,   // push every 15 s
+      exportIntervalMillis: 15_000,
     }),
   ],
 });
@@ -83,28 +85,49 @@ tracerProvider.register();
 export const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
 
 // ─── Structured Logger (Pino → Grafana Cloud Loki) ───────────────────────────
-// Logs are shipped by Promtail / alloy agent — see docker/alloy-config.alloy
-// Pino outputs JSON; Alloy picks it up from stdout/file and forwards to Loki.
+// NEW: Directly sends logs to Loki via HTTP (no Alloy/Promtail needed)
 
-export const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-  base: {
+// Create Loki transport
+const lokiTransport = pinoLoki({
+  host: 'https://logs-prod-028.grafana.net',  // India region
+   basicAuth: {
+    username: GRAFANA_INSTANCE_ID,
+    password: GRAFANA_API_TOKEN,
+  },
+  labels: {
     service: SERVICE_NAME,
     version: SERVICE_VERSION,
     env: NODE_ENV,
   },
-  formatters: {
-    level(label) { return { level: label }; },
-  },
-  timestamp: pino.stdTimeFunctions.isoTime,
+  batching: false, // Send logs immediately
 });
+
+// Create logger with multiple streams (console + Loki)
+export const logger = pino(
+  {
+    level: process.env.LOG_LEVEL || 'info',
+    base: {
+      service: SERVICE_NAME,
+      version: SERVICE_VERSION,
+      env: NODE_ENV,
+    },
+    formatters: {
+      level(label) { return { level: label }; },
+    },
+    timestamp: pino.stdTimeFunctions.isoTime,
+  },
+  pino.multistream([
+    { stream: process.stdout }, // Keep console logs for Render
+    { stream: lokiTransport },   // Direct to Grafana Loki
+  ])
+);
 
 // ─── Graceful shutdown ───────────────────────────────────────────────────────
 
 export async function shutdownObservability() {
   await Promise.all([
-    meterProvider.shutdown(),
-    tracerProvider.shutdown(),
+    meterProvider?.shutdown(),
+    tracerProvider?.shutdown(),
   ]);
 }
 

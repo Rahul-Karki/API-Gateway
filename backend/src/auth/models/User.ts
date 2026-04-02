@@ -8,6 +8,8 @@ export interface IUser extends Document {
     googleId?: string;
     authProvider:string[]; 
     passwordResetAt: Date;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 const userSchema = new Schema<IUser>({
@@ -40,6 +42,6 @@ const userSchema = new Schema<IUser>({
       enum: ["local", "google"],
       default: [],
     },
-});
+},{ timestamps: true });
 
 export const User = mongoose.model<IUser>("User", userSchema);
