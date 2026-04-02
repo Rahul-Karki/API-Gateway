@@ -23,6 +23,7 @@ const GRAFANA_API_TOKEN    = process.env.GRAFANA_API_TOKEN!;
 const SERVICE_NAME         = process.env.SERVICE_NAME || 'my-backend';
 const SERVICE_VERSION      = process.env.SERVICE_VERSION || '1.0.0';
 const NODE_ENV             = process.env.NODE_ENV || 'production';
+const GRAFANA_LOKI_URL     = process.env.GRAFANA_LOKI_URL!;
 
 const AUTH_HEADER = Buffer
   .from(`${GRAFANA_INSTANCE_ID}:${GRAFANA_API_TOKEN}`)
@@ -89,7 +90,7 @@ export const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
 
 // Create Loki transport
 const lokiTransport = pinoLoki({
-  host: 'https://logs-prod-020.grafana.net',  // India region
+  host: GRAFANA_LOKI_URL,
    basicAuth: {
     username: GRAFANA_INSTANCE_ID,
     password: GRAFANA_API_TOKEN,
