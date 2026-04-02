@@ -1,0 +1,117 @@
+server:
+  log_level: info
+  log_format: json
+
+integrations:
+  prometheus_sd:
+    enabled: true
+    refresh_interval: 60s
+
+metricsConfig:
+  wal:
+    checkpoint_interval: 5m
+    truncate_frequency: 1h
+    min_segment_age: 10m
+    max_segment_age: 4h
+    max_wal_segments: 4
+    max_wal_size: 10737418240
+
+  scrape_configs:
+    # Backend metrics
+    - job_name: 'backend'
+      static_configs:
+        - targets: ['backend:9090']
+      scrape_interval: 30s
+      scrape_timeout: 10s
+      metrics_path: '/metrics'
+
+    # Nginx metrics (via prometheus-nginx-module or nginx_prometheus_exporter)
+    - job_name: 'nginx'
+      static_configs:
+        - targets: ['nginx-exporter:9113']
+      scrape_interval: 30s
+      scrape_timeout: 10s
+
+  remote_write:
+    - url: https://prometheus-blocks.grafana.net/api/prom/push
+      basic_auth:
+        username: YOUR_GRAFANA_CLOUD_USER_ID
+        password: YOUR_GRAFANA_CLOUD_API_TOKEN
+      write_relabel_configs:
+        - source_labels: [__name__]
+          regex: '(container_|node_|up)'
+          action: drop
+
+logsConfig:
+  global:
+    clients:
+      - url: https://logs-prod-us-central1.grafana.net/loki/api/v1/push
+        basic_auth:
+          username: YOUR_GRAFANA_CLOUD_USER_ID
+          password: YOUR_GRAFANA_CLOUD_API_TOKEN
+        external_labels:
+          cluster: production
+          service: api-gateway
+          environment: production
+
+  positions:
+    filename: /tmp/positions.yaml
+
+  scrape_configs:
+    # Backend logs
+    - job_name: backend
+      static_configs:
+        - targets: [localhost]
+          labels:
+            job: backend
+            __path__: /var/log/backend/*.log
+      relabel_configs:
+        - source_labels: [__path__]
+          target_label: filename
+
+    # Nginx access logs
+    - job_name: nginx-access
+      static_configs:
+        - targets: [localhost]
+          labels:
+            job: nginx-access
+            __path__: /var/log/nginx/access.log*
+      pipeline_stages:
+        - json:
+            expressions:
+              remote_addr: remote_addr
+              request: request
+              status: status
+              bytes_sent: bytes_sent
+              request_time: request_time
+              upstream_response_time: upstream_response_time
+        - labels:
+            remote_addr:
+            request:
+            status:
+
+    # Nginx error logs
+    - job_name: nginx-error
+      static_configs:
+        - targets: [localhost]
+          labels:
+            job: nginx-error
+            __path__: /var/log/nginx/error.log*
+      pipeline_stages:
+        - regex:
+            expression: '(?P<time>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}) \[(?P<level>\w+)\] (?P<msg>.*)'
+        - labels:
+            level:
+
+    # Docker container logs
+    - job_name: docker
+      docker:
+        host: unix:///var/run/docker.sock
+        relabel_configs:
+          - action: keep
+            regex: backend|nginx|mongo
+            source_labels:
+              - __meta_docker_container_name
+
+traces:
+  enabled: false

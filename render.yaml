@@ -1,0 +1,90 @@
+services:
+  # ============================================
+  # BACKEND API SERVICE
+  # ============================================
+  - type: web
+    name: backend
+    runtime: docker
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "5000"
+      - key: MONGODB_URI
+        scope: env
+        # Set in Render dashboard
+      - key: JWT_SECRET
+        scope: env
+        # Set in Render dashboard
+      - key: LOG_LEVEL
+        value: info
+    healthCheckPath: /health
+    
+  # ============================================
+  # API GATEWAY SERVICE  
+  # ============================================
+  - type: web
+    name: gateway
+    runtime: docker
+    buildCommand: echo "Building gateway..."
+    startCommand: cd API-Gateway && docker run -d -p 8080:8080 --name nginx -v $PWD/API-Gateway/nginx/nginx.conf:/etc/nginx/nginx.conf:ro nginx:alpine
+    envVars:
+      - key: BACKEND_URL
+        value: backend.onrender.com
+      - key: PORT
+        value: "8080"
+    healthCheckPath: /health
+
+  # ============================================
+  # GRAFANA AGENT SERVICE (LOGS & METRICS)
+  # ============================================
+  - type: web
+    name: grafana-agent
+    runtime: docker
+    rootDir: /
+    buildCommand: echo "Grafana Agent ready"
+    dockerfilePath: ./Dockerfile.grafana-agent
+    startCommand: /bin/grafana-agent -config.file=/etc/grafana-agent.yaml -server.http.address=0.0.0.0:$PORT
+    
+    envVars:
+      # Grafana Cloud Credentials (Required)
+      - key: GRAFANA_CLOUD_USER_ID
+        scope: env
+        value: ${GRAFANA_CLOUD_USER_ID}
+      
+      - key: GRAFANA_CLOUD_API_TOKEN
+        scope: env
+        value: ${GRAFANA_CLOUD_API_TOKEN}
+      
+      # Backend Service Configuration
+      - key: BACKEND_URL
+        value: backend.onrender.com
+      
+      - key: BACKEND_METRICS_TOKEN
+        scope: env
+        value: ${BACKEND_METRICS_TOKEN}
+      
+      # Gateway Service Configuration
+      - key: GATEWAY_URL
+        value: gateway.onrender.com
+      
+      - key: GATEWAY_AUTH_TOKEN
+        scope: env
+        value: ${GATEWAY_AUTH_TOKEN}
+      
+      # Render Metadata
+      - key: RENDER_REGION
+        value: oregon
+      
+      - key: RENDER_INSTANCE_ID
+        value: ${RENDER_INSTANCE_ID}
+      
+      # Logging Configuration
+      - key: LOG_LEVEL
+        value: info
+        value: us-east-1
+    healthCheckPath: /api/v1/liveness
+    healthCheckInterval: 30
+    healthCheckTimeout: 10

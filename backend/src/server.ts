@@ -5,11 +5,17 @@ import express from 'express';
 import authRouter from './auth/routers/auth.route';
 import productRouter from './products/router/product.route';
 import { connectDB } from './config/db';
-import jwt from 'jsonwebtoken';
 import refreshRouter from './auth/routers/refresh.route';
 import cookieParser from 'cookie-parser';
 
+import { httpInstrumentation } from './observability/middleware/httpMiddleware';
+import { errorHandler } from './observability/middleware/errorMiddlware';
+import { logger } from './observability/observability';
+
+
 const app = express();
+
+app.use(httpInstrumentation);
 
 app.use(express.json());
 app.use(cookieParser());
@@ -31,23 +37,8 @@ connectDB();
 // routes
 app.use('/api/auth', authRouter);
 app.use('/api/products', productRouter);
-app.use('/api', refreshRouter);    
+app.use('/api', refreshRouter);  
 
-app.get('/validate', (req, res) => {            
-    
-    const token = req.headers.authorization?.split(" ")[1];
+app.use(errorHandler);
 
-    if (!token) return res.status(401).send();
-
-    try {
-        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET as string) as { id: string };
-
-        res.setHeader("X-User-Id", decoded.id);
-
-        res.status(200).send();
-    } catch {
-        res.status(401).send();
-    }
-
-});
 

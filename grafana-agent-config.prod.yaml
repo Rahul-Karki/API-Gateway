@@ -1,0 +1,90 @@
+# Production Grafana Agent Configuration
+
+server:
+  log_level: info
+  log_format: json
+  http_listen_addr: 0.0.0.0
+  http_listen_port: 8080
+
+integrations:
+  prometheus_sd:
+    enabled: false
+
+metricsConfig:
+  wal:
+    checkpoint_interval: 5m
+    truncate_frequency: 1h
+    min_segment_age: 10m
+    max_segment_age: 4h
+
+  scrape_configs:
+    # Backend metrics from Render
+    - job_name: 'backend'
+      static_configs:
+        - targets: ['${BACKEND_URL}:9090']
+      scheme: 'https'
+      scrape_interval: 60s
+      scrape_timeout: 15s
+      metrics_path: '/metrics'
+      bearer_token: '${BACKEND_AUTH_TOKEN}'
+
+    # Nginx/Gateway metrics
+    - job_name: 'nginx-exporter'
+      static_configs:
+        - targets: ['${GATEWAY_URL}:9113']
+      scheme: 'https'
+      scrape_interval: 60s
+      scrape_timeout: 15s
+      bearer_token: '${GATEWAY_AUTH_TOKEN}'
+
+  remote_write:
+    - url: https://prometheus-blocks.grafana.net/api/prom/push
+      basic_auth:
+        username: ${GRAFANA_CLOUD_USER_ID}
+        password: ${GRAFANA_CLOUD_API_TOKEN}
+      queue_config:
+        capacity: 10000
+        max_shards: 10
+        min_shards: 1
+        max_samples_per_send: 5000
+        batch_send_wait: 5s
+
+logsConfig:
+  global:
+    clients:
+      - url: https://logs-prod-us-central1.grafana.net/loki/api/v1/push
+        basic_auth:
+          username: ${GRAFANA_CLOUD_USER_ID}
+          password: ${GRAFANA_CLOUD_API_TOKEN}
+        external_labels:
+          cluster: render-production
+          service: api-stack
+          environment: production
+          region: ${RENDER_REGION}
+
+  positions:
+    filename: /tmp/positions.yaml
+
+  scrape_configs:
+    # Backend logs from API endpoint
+    - job_name: backend-logs
+      loki_push_api:
+        server:
+          http_listen_address: 0.0.0.0
+          http_listen_port: 3100
+      relabel_configs:
+        - source_labels: [__tmp_job_name]
+          target_label: job
+        - source_labels: [__tmp_job_name]
+          target_label: service
+          replacement: backend
+      pipeline_stages:
+        - json:
+            expressions:
+              timestamp: timestamp
+              level: level
+              message: message
+              stack: stack
+        - labels:
+            level:
+            service:
