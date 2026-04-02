@@ -89,7 +89,7 @@ export const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
 
 // Create Loki transport
 const lokiTransport = pinoLoki({
-  host: 'https://logs-prod-028.grafana.net',  // India region
+  host: 'https://logs-prod-020.grafana.net',  // India region
    basicAuth: {
     username: GRAFANA_INSTANCE_ID,
     password: GRAFANA_API_TOKEN,
