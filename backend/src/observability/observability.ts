@@ -120,7 +120,7 @@ const transport = pino.transport({
       target: 'pino/file',          // ✅ built into pino, always available
       level: process.env.LOG_LEVEL || 'info',
       options: {
-        destination: 1,             // 1 = stdout (Render terminal)
+        destination: 2,             // 1 = stdout (Render terminal)
       },
     },
   ],
