@@ -104,6 +104,7 @@ const lokiTransport = pinoLoki({
     env: NODE_ENV,
   },
   batching: false, // Send logs immediately
+  
 });
 
 // Create logger with multiple streams (console + Loki)
