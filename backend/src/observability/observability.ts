@@ -111,10 +111,7 @@ const transport = pino.transport({
           version: SERVICE_VERSION,
           env: NODE_ENV,
         },
-        batching: {
-          interval: 5,
-          maxBufferSize: 10_000,
-        },
+        batching:false,
         silenceErrors: false,
       } satisfies LokiOptions,
     },
