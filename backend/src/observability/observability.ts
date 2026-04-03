@@ -102,7 +102,7 @@ const transport = pino.transport({
       target: 'pino-loki',
       level: process.env.LOG_LEVEL || 'info',
       options: {
-        host: "https://logs-prod-028.grafana.net",
+        host: "https://logs-prod-028.grafana.net/loki/api/v1/push",    
         basicAuth: {
           username: LOKI_INSTANCE_ID,
           password: GRAFANA_API_TOKEN,
@@ -112,7 +112,9 @@ const transport = pino.transport({
           version: SERVICE_VERSION,
           env: NODE_ENV,
         },
-        batching:false,
+       batching: {
+          interval: 5     
+        },
         silenceErrors: false,
       } satisfies LokiOptions,
     },
