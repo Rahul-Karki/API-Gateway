@@ -19,15 +19,16 @@ import type { LokiOptions } from 'pino-loki';
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const GRAFANA_OTLP_ENDPOINT = process.env.GRAFANA_OTLP_ENDPOINT!;
-const GRAFANA_INSTANCE_ID  = process.env.GRAFANA_INSTANCE_ID!;
+const OPTL_INSTANCE_ID     = process.env.OPTL_INSTANCE_ID!;
 const GRAFANA_API_TOKEN    = process.env.GRAFANA_API_TOKEN!;
 const SERVICE_NAME         = process.env.SERVICE_NAME || 'my-backend';
 const SERVICE_VERSION      = process.env.SERVICE_VERSION || '1.0.0';
 const NODE_ENV             = process.env.NODE_ENV || 'production';
 const GRAFANA_LOKI_URL     = process.env.GRAFANA_LOKI_URL!;
+const LOKI_INSTANCE_ID       = process.env.LOKI_INSTANCE_ID!;
 
 const AUTH_HEADER = Buffer
-  .from(`${GRAFANA_INSTANCE_ID}:${GRAFANA_API_TOKEN}`)
+  .from(`${OPTL_INSTANCE_ID}:${GRAFANA_API_TOKEN}`)
   .toString('base64');
 
 const OTLP_HEADERS = {
@@ -103,7 +104,7 @@ const transport = pino.transport({
       options: {
         host: 'https://logs-prod-028.grafana.net',
         basicAuth: {
-          username: GRAFANA_INSTANCE_ID,
+          username: LOKI_INSTANCE_ID,
           password: GRAFANA_API_TOKEN,
         },
         labels: {
