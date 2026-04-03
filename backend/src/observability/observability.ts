@@ -96,7 +96,7 @@ const lokiTransport = pinoLoki({
   host: 'https://logs-prod-028.grafana.net',  // India region
    basicAuth: {
     username: "1538848",
-    password: "glc_eyJvIjoiMTcxOTQ0NiIsIm4iOiJmaW5hbC12MSIsImsiOiIxdnNvcTA1aTI1ZTBDNU5TMTJsNkxHRXAiLCJtIjp7InIiOiJwcm9kLWFwLXNvdXRoLTEifX0=",
+    password: 'glc_eyJvIjoiMTcxOTQ0NiIsIm4iOiJmaW5hbC12MSIsImsiOiIxdnNvcTA1aTI1ZTBDNU5TMTJsNkxHRXAiLCJtIjp7InIiOiJwcm9kLWFwLXNvdXRoLTEifX0='
   },
   labels: {
     service: SERVICE_NAME,
