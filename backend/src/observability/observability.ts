@@ -103,7 +103,7 @@ const transport = pino.transport({
       options: {
         host: 'https://logs-prod-028.grafana.net',
         basicAuth: {
-          username: '1538848',
+          username: GRAFANA_INSTANCE_ID,
           password: GRAFANA_API_TOKEN,
         },
         labels: {
