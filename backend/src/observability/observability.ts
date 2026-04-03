@@ -116,15 +116,8 @@ const transport = pino.transport({
           interval: 5     
         },
         silenceErrors: false,
-      } satisfies LokiOptions,
-    },
-    {
-      target: 'pino/file',          // ✅ built into pino, always available
-      level: process.env.LOG_LEVEL || 'info',
-      options: {
-        destination: 1,             // 1 = stdout (Render terminal)
-      },
-    },
+      } 
+    }
   ],
 });
 
