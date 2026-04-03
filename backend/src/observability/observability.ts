@@ -100,7 +100,7 @@ const transport = pino.transport({
     {
       target: 'pino-loki',
       level: process.env.LOG_LEVEL || 'info',
-      options: {                              // ← ONLY loki options here
+      options: {
         host: 'https://logs-prod-028.grafana.net',
         basicAuth: {
           username: '1538848',
@@ -116,18 +116,18 @@ const transport = pino.transport({
           maxBufferSize: 10_000,
         },
         silenceErrors: false,
-      } satisfies LokiOptions,               // ← satisfies applies ONLY to this block
+      } satisfies LokiOptions,
     },
     {
-      target: 'pino-pretty',
+      target: 'pino/file',          // ✅ built into pino, always available
       level: process.env.LOG_LEVEL || 'info',
-      options: {                              // ← ONLY pino-pretty options here
-        colorize: true,
-        ignore: 'pid,hostname',
-      },                                      // ← NO satisfies LokiOptions here
+      options: {
+        destination: 1,             // 1 = stdout (Render terminal)
+      },
     },
   ],
 });
+
 export const logger = pino(
   {
     level: process.env.LOG_LEVEL || 'info',
