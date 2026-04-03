@@ -79,8 +79,11 @@ const traceExporter = new OTLPTraceExporter({
   headers: OTLP_HEADERS,
 });
 
-export const tracerProvider = new NodeTracerProvider({ resource });
-tracerProvider.addSpanProcessor(new SimpleSpanProcessor(traceExporter));
+export const tracerProvider = new NodeTracerProvider({
+  resource,
+  spanProcessors: [new SimpleSpanProcessor(traceExporter)],
+});
+
 tracerProvider.register();
 
 export const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
@@ -90,7 +93,7 @@ export const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
 
 // Create Loki transport
 const lokiTransport = pinoLoki({
-  host: 'https://logs-prod-020.grafana.net',  // India region
+  host:  'logs-prod-028.grafana.net',  // India region
    basicAuth: {
     username: GRAFANA_INSTANCE_ID,
     password: GRAFANA_API_TOKEN,
