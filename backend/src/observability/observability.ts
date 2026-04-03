@@ -14,6 +14,7 @@ import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { trace, metrics, context, SpanStatusCode } from '@opentelemetry/api';
 import pino from 'pino';
 import pinoLoki from 'pino-loki';
+import type { LokiOptions } from 'pino-loki';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -91,23 +92,42 @@ export const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
 // ─── Structured Logger (Pino → Grafana Cloud Loki) ───────────────────────────
 // NEW: Directly sends logs to Loki via HTTP (no Alloy/Promtail needed)
 
-// Create Loki transport
-const lokiTransport = pinoLoki({
-  host: 'https://logs-prod-028.grafana.net',  // India region
-   basicAuth: {
-    username: "1538848",
-    password: GRAFANA_API_TOKEN,
-  },
-  labels: {
-    service: SERVICE_NAME,
-    version: SERVICE_VERSION,
-    env: NODE_ENV,
-  },
-  batching: false, // Send logs immediately
-  
-});
 
-// Create logger with multiple streams (console + Loki)
+// ─── Structured Logger (Pino → Grafana Cloud Loki) ───────────────────────────
+
+const transport = pino.transport({
+  targets: [
+    {
+      target: 'pino-loki',
+      level: process.env.LOG_LEVEL || 'info',
+      options: {                              // ← ONLY loki options here
+        host: 'https://logs-prod-028.grafana.net',
+        basicAuth: {
+          username: '1538848',
+          password: GRAFANA_API_TOKEN,
+        },
+        labels: {
+          service: SERVICE_NAME,
+          version: SERVICE_VERSION,
+          env: NODE_ENV,
+        },
+        batching: {
+          interval: 5,
+          maxBufferSize: 10_000,
+        },
+        silenceErrors: false,
+      } satisfies LokiOptions,               // ← satisfies applies ONLY to this block
+    },
+    {
+      target: 'pino-pretty',
+      level: process.env.LOG_LEVEL || 'info',
+      options: {                              // ← ONLY pino-pretty options here
+        colorize: true,
+        ignore: 'pid,hostname',
+      },                                      // ← NO satisfies LokiOptions here
+    },
+  ],
+});
 export const logger = pino(
   {
     level: process.env.LOG_LEVEL || 'info',
@@ -119,13 +139,13 @@ export const logger = pino(
     formatters: {
       level(label) { return { level: label }; },
     },
-    timestamp: pino.stdTimeFunctions.isoTime,
+    timestamp: pino.stdTimeFunctions.epochTime, // ✅ epoch, not isoTime
   },
-  pino.multistream([
-    { stream: process.stdout }, // Keep console logs for Render
-    { stream: lokiTransport },   // Direct to Grafana Loki
-  ])
+  transport,
 );
+
+// Create Loki transport
+
 
 // ─── Graceful shutdown ───────────────────────────────────────────────────────
 
