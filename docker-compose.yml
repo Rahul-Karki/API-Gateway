@@ -53,6 +53,9 @@ services:
     networks:
       - app-network
 
+include:
+  - docker-compose.redis.yml
+
 networks:
   app-network:
     driver: bridge

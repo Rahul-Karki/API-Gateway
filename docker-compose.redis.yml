@@ -1,0 +1,42 @@
+version: '3.9'
+
+services:
+  # Redis instance for rate limiting and caching
+  redis:
+    image: redis:7-alpine
+    container_name: gateway-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --appendfsync everysec
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - gateway-network
+    environment:
+      - REDIS_REPLICATION_BACKLOG_SIZE=1048576
+
+  # Optional: Redis Commander for UI management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: gateway-redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - gateway-network
+
+volumes:
+  redis-data:
+    driver: local
+
+networks:
+  gateway-network:
+    driver: bridge
