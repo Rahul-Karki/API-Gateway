@@ -3,6 +3,15 @@ import { Request, Response, NextFunction } from "express";
 import redis from "../config/redis";
 import { logger } from "../observability/observability";
 
+function isRateLimitRejection(error: unknown): error is { msBeforeNext: number } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "msBeforeNext" in error &&
+    typeof (error as { msBeforeNext?: unknown }).msBeforeNext === "number"
+  );
+}
+
 /**
  * Get client identifier for rate limiting
  * Supports: IP address (with proxy trust), User ID, API key
@@ -58,15 +67,22 @@ export const apiLimiter = async (
     res.setHeader("X-RateLimit-Limit", "100");
     res.setHeader("X-RateLimit-Remaining", String(Math.max(rlRes.remainingPoints, 0)));
     next();
-  } catch (error: any) {
-    logger.warn(
-      { type: "general", ip: req.ip, path: req.path, retryAfter: error.msBeforeNext },
-      "Rate limit exceeded"
-    );
-    res.status(429).json({
-      error: "Too many requests",
-      retryAfter: Math.ceil(error.msBeforeNext / 1000),
-    });
+  } catch (error: unknown) {
+    if (isRateLimitRejection(error)) {
+      logger.warn(
+        { type: "general", ip: req.ip, path: req.path, retryAfter: error.msBeforeNext },
+        "Rate limit exceeded"
+      );
+      res.status(429).json({
+        error: "Too many requests",
+        retryAfter: Math.ceil(error.msBeforeNext / 1000),
+      });
+      return;
+    }
+
+    // Fail open on Redis/internal errors so healthy requests are not blocked.
+    logger.error({ error, ip: req.ip, path: req.path }, "Rate limiter internal error; allowing request");
+    next();
   }
 };
 
@@ -85,15 +101,22 @@ export const authLimiter = async (
     res.setHeader("X-RateLimit-Limit", "5");
     res.setHeader("X-RateLimit-Remaining", String(Math.max(rlRes.remainingPoints, 0)));
     next();
-  } catch (error: any) {
-    logger.warn(
-      { type: "auth", ip: req.ip, path: req.path, retryAfter: error.msBeforeNext },
-      "Auth rate limit exceeded"
-    );
-    res.status(429).json({
-      error: "Too many attempts. Please try again later.",
-      retryAfter: Math.ceil(error.msBeforeNext / 1000),
-    });
+  } catch (error: unknown) {
+    if (isRateLimitRejection(error)) {
+      logger.warn(
+        { type: "auth", ip: req.ip, path: req.path, retryAfter: error.msBeforeNext },
+        "Auth rate limit exceeded"
+      );
+      res.status(429).json({
+        error: "Too many attempts. Please try again later.",
+        retryAfter: Math.ceil(error.msBeforeNext / 1000),
+      });
+      return;
+    }
+
+    // Fail open on Redis/internal errors so auth flow is not broken by infra blips.
+    logger.error({ error, ip: req.ip, path: req.path }, "Auth rate limiter internal error; allowing request");
+    next();
   }
 };
 

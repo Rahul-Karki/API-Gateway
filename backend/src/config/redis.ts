@@ -12,18 +12,19 @@ function resolveRedisUrl(): string {
   }
 
   // Upstash REST credentials fallback.
+  // UPSTASH_REDIS_REST_URL is HTTPS, but ioredis needs rediss:// on Redis TCP port.
   const upstashRestUrl = process.env.UPSTASH_REDIS_REST_URL;
   const redisRestToken = process.env.REDIS_REST_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!upstashRestUrl || !redisRestToken) {
     throw new Error(
-      "Redis configuration missing: set REDIS_URL or both UPSTASH_REDIS_REST_URL and REDIS_REST_TOKEN"
+      "Redis configuration missing: set REDIS_URL or both UPSTASH_REDIS_REST_URL and REDIS_REST_TOKEN (Upstash)"
     );
   }
 
   const parsed = new URL(upstashRestUrl);
   const host = parsed.hostname;
-  const port = parsed.port || "443";
+  const port = process.env.UPSTASH_REDIS_PORT || parsed.port || "6379";
   const username = "default";
   const password = encodeURIComponent(redisRestToken);
 
