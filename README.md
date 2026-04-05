@@ -425,14 +425,3 @@ This brings up frontend, backend, mongo, nginx, and included redis services.
 - DB tracing helper currently labels `db.system` as `postgresql` while this project uses MongoDB; update this attribute for telemetry correctness.
 - Cookies are configured as `secure` and `sameSite=none`; local non-HTTPS testing may require environment-specific cookie handling.
 
-## 14. Future Improvements
-
-- Add role-based access control for product write endpoints.
-- Add automated test suite (unit + integration + contract tests).
-- Add OpenAPI/Swagger spec generation for stable API contracts.
-- Add centralized config validation on startup (zod/env schema).
-- Move hardcoded deployment URLs to environment-driven config for frontend and gateway.
-
----
-
-If you want, the next step can be a second document focused only on API contracts and example request/response payloads (`docs/API_REFERENCE.md`) generated directly from your existing routes and controllers.
