@@ -124,13 +124,11 @@ transportTargets.push({
 // ✅ ONLY add Loki if environment variables are set
 if (GRAFANA_LOKI_URL && LOKI_INSTANCE_ID && GRAFANA_API_TOKEN) {
   console.log('✅ Grafana Loki enabled:', GRAFANA_LOKI_URL);
-  console.log('   Instance ID:', LOKI_INSTANCE_ID);
-  
   transportTargets.push({
     target: 'pino-loki',
     level: process.env.LOG_LEVEL || 'info',
     options: {
-      host: GRAFANA_LOKI_URL,
+      host: 'https://logs-prod-028.grafana.net',
       basicAuth: {
         username: LOKI_INSTANCE_ID,
         password: GRAFANA_API_TOKEN,
@@ -142,29 +140,14 @@ if (GRAFANA_LOKI_URL && LOKI_INSTANCE_ID && GRAFANA_API_TOKEN) {
       },
       batching: {
         interval: 5000, // 5 seconds
-        maxSize: 1048576, // 1MB max batch size
       },
-      timeout: 10000, // 10 seconds
       silenceErrors: false,
-      onError: (err: Error) => {
-        console.error('🔴 Pino-Loki Transport Error:', {
-          message: err.message,
-          stack: err.stack,
-        });
-      },
     } satisfies LokiOptions,
   });
-} else {
-  console.log('⚠️  Grafana Loki NOT configured.');
-  console.log('   GRAFANA_LOKI_URL:', GRAFANA_LOKI_URL);
-  console.log('   LOKI_INSTANCE_ID:', LOKI_INSTANCE_ID);
-  console.log('   GRAFANA_API_TOKEN:', GRAFANA_API_TOKEN ? '(set)' : '(not set)');
-}
-
+} 
 const transport = pino.transport({
   targets: transportTargets,
 });
-
 export const logger = pino(
   {
     level: process.env.LOG_LEVEL || 'info',
