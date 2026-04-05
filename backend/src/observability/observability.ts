@@ -204,6 +204,14 @@ const transport = pino.multistream([
 export const logger = pino(
   {
     level: process.env.LOG_LEVEL || 'info',
+    formatters: {
+      level(label) {
+        return {
+          level: label,
+          severity: label.toUpperCase(),
+        };
+      },
+    },
     base: {
       service: SERVICE_NAME,
       version: SERVICE_VERSION,
