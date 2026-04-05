@@ -130,7 +130,7 @@ if (GRAFANA_LOKI_URL && LOKI_INSTANCE_ID && GRAFANA_API_TOKEN) {
     target: 'pino-loki',
     level: process.env.LOG_LEVEL || 'info',
     options: {
-      host: GRAFANA_LOKI_URL, // ✅ FIXED
+      host: 'https://logs-prod-028.grafana.net', 
       basicAuth: {
         username: LOKI_INSTANCE_ID,
         password: GRAFANA_API_TOKEN,
