@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { IUser } from "../models/User";
 import { logger, tracer, SpanStatusCode } from "../../observability/observability";
 
 // Create a type for authenticated user (only ID guaranteed)
@@ -14,6 +13,7 @@ export interface AuthRequest extends Request {
 }
 
 const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const log = logger.child({ component: 'auth.middleware' });
   const span = tracer.startSpan('auth.middleware', {
     attributes: {
       'http.path': req.url,
@@ -26,8 +26,9 @@ const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunctio
   try {
     const token = req.cookies?.accessToken;
     
-    logger.info({
-      type: 'auth_check',
+    log.info({
+      event: 'auth_check',
+      status: 'start',
       url: req.url,
       method: req.method,
       hasTokenCookie: !!token,
@@ -35,13 +36,14 @@ const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunctio
       cookiesPresent: Object.keys(req.cookies || {})
     }, 'Auth middleware - checking token');
     
-    console.log("🔐 Auth Check:", {
+    log.debug({
+      event: 'auth_check_details',
       url: req.url,
       method: req.method,
       cookies: Object.keys(req.cookies || {}),
       hasTokenCookie: !!token,
       tokenLength: token?.length || 0
-    });
+    }, "Auth middleware - checking token details");
 
     if (!token || typeof token !== 'string') {
       span.setAttributes({
@@ -50,14 +52,14 @@ const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunctio
         'auth.duration_ms': Date.now() - startTime
       });
       
-      logger.warn({
-        type: 'auth_failed',
+      log.warn({
+        event: 'auth_check',
+        status: 'blocked',
         reason: 'missing_token',
         url: req.url,
         method: req.method
       }, 'Auth blocked - no access token found');
-      
-      console.log("❌ BLOCKED: No accessToken cookie found");
+
       return res.status(401).json({ message: "Access token missing" });
     }
 
@@ -79,15 +81,16 @@ const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunctio
         'auth.duration_ms': Date.now() - startTime
       });
       
-      logger.info({
-        type: 'auth_success',
+      log.info({
+        event: 'auth_check',
+        status: 'success',
         userId: decoded.userId,
         url: req.url,
         method: req.method,
         token_verify_ms: verifyDuration
       }, 'Auth successful - token verified');
-      
-      console.log("✅ ALLOWED: Valid token for userId:", decoded.userId);
+
+      log.debug({ event: 'auth_token_accepted', userId: decoded.userId, url: req.url, method: req.method }, "Valid token accepted");
       
       // ✅ Fix: Set user with just the ID (matches AuthUser type)
       req.user = { _id: decoded.userId };
@@ -106,16 +109,16 @@ const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunctio
         message: jwtError.message
       });
       
-      logger.warn({
-        type: 'auth_failed',
+      log.warn({
+        event: 'auth_check',
+        status: 'blocked',
         reason: 'invalid_token',
         error: jwtError.message,
         error_name: jwtError.name,
         url: req.url,
         method: req.method
       }, 'Auth blocked - invalid token');
-      
-      console.error("❌ AUTH ERROR:", jwtError.message);
+
       return res.status(403).json({ message: "Invalid access token", error: jwtError.message });
     }
     
@@ -132,15 +135,15 @@ const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunctio
       message: error.message
     });
     
-    logger.error({
-      type: 'auth_error',
+    log.error({
+      event: 'auth_check',
+      status: 'error',
       error: error.message,
       stack: error.stack,
       url: req.url,
       method: req.method
     }, 'Auth middleware - unexpected error');
-    
-    console.error("❌ AUTH UNEXPECTED ERROR:", error);
+
     return res.status(500).json({ message: "Internal server error during authentication" });
     
   } finally {

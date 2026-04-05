@@ -1,4 +1,7 @@
 import jwt from 'jsonwebtoken';
+import { logger } from '../../observability/observability';
+
+const log = logger.child({ component: 'auth.generate_token' });
 
 const generateAccessToken = (userId: string) =>{
     try{
@@ -11,7 +14,7 @@ const generateAccessToken = (userId: string) =>{
         return jwt.sign({ userId }, token, { expiresIn: '15m' });
 
     }catch(err){
-        console.error("Error generating access token:", err);
+        log.error({ event: 'access_token_generate', status: 'error', error: err, userId }, "Error generating access token");
         throw new Error("Failed to generate access token");
     }               
 }
@@ -26,7 +29,7 @@ const generateRefreshToken = (userId: string) => {
 
         return jwt.sign({ userId }, token, { expiresIn: '7d' });
     }catch(err){
-        console.error("Error generating refresh token:", err);
+            log.error({ event: 'refresh_token_generate', status: 'error', error: err, userId }, "Error generating refresh token");
         throw new Error("Failed to generate refresh token");
     }
 }

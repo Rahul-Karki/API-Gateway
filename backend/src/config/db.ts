@@ -1,4 +1,7 @@
 import mongoose from "mongoose";
+import { logger } from "../observability/observability";
+
+const log = logger.child({ component: 'config.db' });
 
 const connectDB = async() => {
     try{
@@ -9,10 +12,11 @@ const connectDB = async() => {
         }
 
         await mongoose.connect(MONGODB_URI);
-        console.log("Connected to MongoDB successfully");
+        log.info({ event: 'db_connect', status: 'success' }, "Connected to MongoDB successfully");
 
     }catch(error){
-        return console.error("Error connecting to MongoDB:", error);
+        log.error({ event: 'db_connect', status: 'error', error }, "Error connecting to MongoDB");
+        return;
     }
 }
 

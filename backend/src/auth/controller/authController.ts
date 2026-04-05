@@ -343,7 +343,7 @@ const login = async (req: Request, res: Response) => {
       duration_ms: Date.now() - startTime
     }, 'Login failed with  error');
 
-    console.error(error); // 👈 always log errors
+    logger.error({ event: 'login', status: 'error', error, email: req.body?.email }, 'Login request failed');
     res.status(500).json({
       message: "Server error",
     });
@@ -689,7 +689,7 @@ const forgotPassword = async (req: Request, res: Response) => {
       hasEmail: !!email,
     }, 'Forgot password attempt started');
 
-    console.log("1. Route hit");
+    logger.debug({ event: 'forgot_password', status: 'step', step: 'route_hit', email: email?.toLowerCase() }, 'Forgot password route hit');
 
     if (!email) {
       // Add span attributes for validation failure
@@ -745,7 +745,7 @@ const forgotPassword = async (req: Request, res: Response) => {
       'user.exists': true
     });
 
-    console.log("2. User found:", !!user);
+    logger.debug({ event: 'forgot_password', status: 'step', step: 'user_found', userFound: !!user, email: email.toLowerCase() }, 'Forgot password user lookup complete');
 
     // Check password reset cooldown
     if (
@@ -773,8 +773,6 @@ const forgotPassword = async (req: Request, res: Response) => {
       });
     }
 
-    console.log("2. User found:", !!user);
-    
     // Generate token
     const rawToken = crypto.randomBytes(32).toString("hex");
     const hashed = hashToken(rawToken); // Make sure hashToken function is defined
@@ -800,7 +798,7 @@ const forgotPassword = async (req: Request, res: Response) => {
 
     const link = `https://api-gateway-snowy.vercel.app/reset-password?token=${rawToken}`;
     
-    console.log("3. Token generated");
+    logger.debug({ event: 'forgot_password', status: 'step', step: 'token_generated', email: email.toLowerCase() }, 'Forgot password token generated');
     
     // Add token generation attributes to span
     span.setAttributes({
@@ -821,9 +819,9 @@ const forgotPassword = async (req: Request, res: Response) => {
       subject: "Password Reset Request",
       html: forgotPasswordTemplate(link),
     }).catch((err) => {
-      console.error("Background email error:", err);
       logger.error({
-        type: 'password_reset_email_error',
+        event: 'password_reset_email',
+        status: 'error',
         error: err.message,
         stack: err.stack,
         userId: user._id.toString(),
@@ -831,7 +829,7 @@ const forgotPassword = async (req: Request, res: Response) => {
       }, 'Failed to send password reset email');
     });
 
-    console.log("4. Email sent");
+    logger.debug({ event: 'forgot_password', status: 'step', step: 'email_dispatched', email: email.toLowerCase() }, 'Forgot password email dispatched');
 
     // Success
     const duration = Date.now() - startTime;
@@ -854,7 +852,7 @@ const forgotPassword = async (req: Request, res: Response) => {
       message: "Password reset link sent to email",
     });
 
-    console.log("5. Response sent");
+    logger.debug({ event: 'forgot_password', status: 'step', step: 'response_sent', email: email.toLowerCase() }, 'Forgot password response sent');
     
   } catch (error: any) {
     // Error handling with span and logger
@@ -1336,9 +1334,9 @@ const resendResetLink = async (req: Request, res: Response) => {
       subject: "Password Reset Request",
       html: forgotPasswordTemplate(link),
     }).catch((err: any) => {
-      console.error("Background email error:", err);
       logger.error({
-        type: 'password_reset_email_error',
+        event: 'password_reset_email',
+        status: 'error',
         error: err.message,
         stack: err.stack,
         userId: user._id.toString(),

@@ -506,6 +506,7 @@ const deleteProduct = async (req: Request, res: Response) => {
 };
 
 const getProductByID = async (req: Request, res: Response) => {
+  const log = logger.child({ component: 'products.controller' });
   const startTime = Date.now();
   
   // Start span for get product by ID operation
@@ -519,13 +520,14 @@ const getProductByID = async (req: Request, res: Response) => {
   });
 
   try {
-    console.log("getProductByID called with:", req.params);
+    log.debug({ event: 'get_product_by_id', status: 'start', params: req.params }, 'getProductByID called');
     
     const { productId } = req.params;
 
     // Log the attempt
-    logger.info({
-      type: 'get_product_by_id_attempt',
+    log.info({
+      event: 'get_product_by_id',
+      status: 'attempt',
       productId: productId,
     }, 'Get product by ID attempt started');
 
@@ -541,8 +543,9 @@ const getProductByID = async (req: Request, res: Response) => {
         'product.id': productId,
       });
       
-      logger.warn({
-        type: 'get_product_by_id_failed',
+      log.warn({
+        event: 'get_product_by_id',
+        status: 'not_found',
         reason: 'product_not_found',
         productId: productId,
       }, 'Get product by ID failed - product not found');
@@ -564,8 +567,9 @@ const getProductByID = async (req: Request, res: Response) => {
       'product.get_by_id.duration_ms': duration,
     });
     
-    logger.info({
-      type: 'get_product_by_id_success',
+    log.info({
+      event: 'get_product_by_id',
+      status: 'success',
       productId: product._id.toString(),
       productName: product.name,
       productPrice: product.price,

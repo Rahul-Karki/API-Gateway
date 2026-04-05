@@ -43,7 +43,7 @@ let meterProvider: MeterProvider | null = null;
 let meter: any = null;
 
 if (GRAFANA_OTLP_ENDPOINT && AUTH_HEADER) {
-  console.log('✅ Grafana OTLP Metrics enabled:', GRAFANA_OTLP_ENDPOINT);
+  console.info('✅ Grafana OTLP Metrics enabled:', GRAFANA_OTLP_ENDPOINT);
   const metricExporter = new OTLPMetricExporter({
     url: `${GRAFANA_OTLP_ENDPOINT}/v1/metrics`,
     headers: { Authorization: `Basic ${AUTH_HEADER}` },
@@ -61,7 +61,7 @@ if (GRAFANA_OTLP_ENDPOINT && AUTH_HEADER) {
   
   meter = meterProvider.getMeter(SERVICE_NAME);
 } else {
-  console.log('⚠️  Grafana OTLP Metrics NOT configured.');
+  console.warn('⚠️  Grafana OTLP Metrics NOT configured.');
   // Create a no-op meter provider
   meterProvider = new MeterProvider({ resource });
   meter = meterProvider.getMeter(SERVICE_NAME);
@@ -86,7 +86,7 @@ export const appMetrics = {
 let tracerProvider: NodeTracerProvider;
 
 if (GRAFANA_OTLP_ENDPOINT && AUTH_HEADER) {
-  console.log('✅ Grafana OTLP Traces enabled:', GRAFANA_OTLP_ENDPOINT);
+  console.info('✅ Grafana OTLP Traces enabled:', GRAFANA_OTLP_ENDPOINT);
   const traceExporter = new OTLPTraceExporter({
     url: `${GRAFANA_OTLP_ENDPOINT}/v1/traces`,
     headers: { Authorization: `Basic ${AUTH_HEADER}` },
@@ -96,7 +96,7 @@ if (GRAFANA_OTLP_ENDPOINT && AUTH_HEADER) {
     spanProcessors: [new SimpleSpanProcessor(traceExporter)],
   });
 } else {
-  console.log('⚠️  Grafana OTLP Traces NOT configured.');
+  console.warn('⚠️  Grafana OTLP Traces NOT configured.');
   tracerProvider = new NodeTracerProvider({ resource });
 }
 
@@ -193,7 +193,7 @@ const lokiStream = {
   },
 };
 
-console.log(lokiEnabled ? `✅ Grafana Loki enabled: ${GRAFANA_LOKI_URL}` : '⚠️ Loki not configured — using stdout only');
+console.info(lokiEnabled ? `✅ Grafana Loki enabled: ${GRAFANA_LOKI_URL}` : '⚠️ Loki not configured — using stdout only');
 
 const transport = pino.multistream([
   { stream: process.stdout },
