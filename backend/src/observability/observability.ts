@@ -13,7 +13,6 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { trace, metrics, context, SpanStatusCode } from '@opentelemetry/api';
 import pino from 'pino';
-import type { LokiOptions } from 'pino-loki';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -109,51 +108,97 @@ export const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
 
 // ─── Structured Logger (Pino) ────────────────────────────────────────────────
 
+type LokiPushEntry = {
+  ts: string;
+  line: string;
+};
 
-const transportTargets: pino.TransportTargetOptions[] = [];
+const lokiEnabled = Boolean(GRAFANA_LOKI_URL && LOKI_INSTANCE_ID && GRAFANA_API_TOKEN);
+const lokiBuffer: LokiPushEntry[] = [];
+let lokiFlushTimer: NodeJS.Timeout | null = null;
+let lokiFlushing = false;
 
-// ✅ Always log to stdout (Render logs)
-transportTargets.push({
-  target: 'pino/file',
-  level: process.env.LOG_LEVEL || 'info',
-  options: {
-    destination: 1, // stdout
-  },
-});
-
-
-// ✅ Add Loki ONLY if properly configured
-if (GRAFANA_LOKI_URL && LOKI_INSTANCE_ID && GRAFANA_API_TOKEN) {
-  console.log('✅ Grafana Loki enabled:', GRAFANA_LOKI_URL);
-
-  transportTargets.push({
-    target: 'pino-loki',
-    level: process.env.LOG_LEVEL || 'info',
-    options: {
-      host: 'https://logs-prod-028.grafana.net', 
-      basicAuth: {
-        username: LOKI_INSTANCE_ID,
-        password: GRAFANA_API_TOKEN,
-      },
-      labels: {
-        service: SERVICE_NAME || 'unknown-service',
-        version: SERVICE_VERSION || '1.0.0',
-        env: NODE_ENV || 'development',
-      },
-      batching: {
-        interval: 5000,
-      },
-      silenceErrors: false,
-    } as LokiOptions,
-  });
-} else {
-  console.warn('⚠️ Loki not configured — using stdout only');
+function getLokiLabels() {
+  return {
+    service: SERVICE_NAME,
+    version: SERVICE_VERSION,
+    env: NODE_ENV,
+  };
 }
 
-// ✅ Create transport
-const transport = pino.transport({
-  targets: transportTargets,
-});
+async function flushLokiBuffer() {
+  if (!lokiEnabled || lokiFlushing || lokiBuffer.length === 0) {
+    return;
+  }
+
+  lokiFlushing = true;
+  const batch = lokiBuffer.splice(0, lokiBuffer.length);
+
+  try {
+    const authHeader = Buffer.from(`${LOKI_INSTANCE_ID}:${GRAFANA_API_TOKEN}`).toString('base64');
+    const response = await fetch(GRAFANA_LOKI_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${authHeader}`,
+      },
+      body: JSON.stringify({
+        streams: [
+          {
+            stream: getLokiLabels(),
+            values: batch.map((entry) => [entry.ts, entry.line]),
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const responseText = await response.text().catch(() => '');
+      console.error('🔴 Loki push failed:', response.status, responseText);
+    }
+  } catch (error) {
+    console.error('🔴 Loki push error:', error);
+  } finally {
+    lokiFlushing = false;
+  }
+}
+
+function queueLokiLine(line: string) {
+  if (!lokiEnabled) {
+    return;
+  }
+
+  lokiBuffer.push({
+    ts: (BigInt(Date.now()) * 1_000_000n).toString(),
+    line: line.trimEnd(),
+  });
+
+  if (lokiBuffer.length >= 20) {
+    void flushLokiBuffer();
+    return;
+  }
+
+  if (!lokiFlushTimer) {
+    lokiFlushTimer = setTimeout(() => {
+      lokiFlushTimer = null;
+      void flushLokiBuffer();
+    }, 5000);
+  }
+}
+
+const lokiStream = {
+  write(chunk: string | Buffer) {
+    queueLokiLine(typeof chunk === 'string' ? chunk : chunk.toString('utf8'));
+    return true;
+  },
+};
+
+console.log(lokiEnabled ? `✅ Grafana Loki enabled: ${GRAFANA_LOKI_URL}` : '⚠️ Loki not configured — using stdout only');
+
+const transport = pino.multistream([
+  { stream: process.stdout },
+  ...(lokiEnabled ? [{ stream: lokiStream }] : []),
+]);
 
 // ✅ Logger instance
 export const logger = pino(
@@ -180,6 +225,12 @@ export async function shutdownObservability() {
 }
 
 process.on('SIGTERM', async () => {
+  if (lokiFlushTimer) {
+    clearTimeout(lokiFlushTimer);
+    lokiFlushTimer = null;
+  }
+
+  await flushLokiBuffer();
   await shutdownObservability();
   process.exit(0);
 });
