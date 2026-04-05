@@ -109,10 +109,10 @@ export const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
 
 // ─── Structured Logger (Pino) ────────────────────────────────────────────────
 
-// Build transport targets dynamically
-const transportTargets: any[] = [];
 
-// ✅ ALWAYS add stdout (for Render logs)
+const transportTargets: pino.TransportTargetOptions[] = [];
+
+// ✅ Always log to stdout (Render logs)
 transportTargets.push({
   target: 'pino/file',
   level: process.env.LOG_LEVEL || 'info',
@@ -121,33 +121,41 @@ transportTargets.push({
   },
 });
 
-// ✅ ONLY add Loki if environment variables are set
+
+// ✅ Add Loki ONLY if properly configured
 if (GRAFANA_LOKI_URL && LOKI_INSTANCE_ID && GRAFANA_API_TOKEN) {
   console.log('✅ Grafana Loki enabled:', GRAFANA_LOKI_URL);
+
   transportTargets.push({
     target: 'pino-loki',
     level: process.env.LOG_LEVEL || 'info',
     options: {
-      host: 'https://logs-prod-028.grafana.net',
+      host: `${GRAFANA_LOKI_URL}/loki/api/v1/push`, // ✅ FIXED
       basicAuth: {
         username: LOKI_INSTANCE_ID,
         password: GRAFANA_API_TOKEN,
       },
       labels: {
-        service: SERVICE_NAME,
-        version: SERVICE_VERSION,
-        env: NODE_ENV,
+        service: SERVICE_NAME || 'unknown-service',
+        version: SERVICE_VERSION || '1.0.0',
+        env: NODE_ENV || 'development',
       },
       batching: {
-        interval: 5000, // 5 seconds
+        interval: 5000,
       },
       silenceErrors: false,
-    } satisfies LokiOptions,
+    } as LokiOptions,
   });
-} 
+} else {
+  console.warn('⚠️ Loki not configured — using stdout only');
+}
+
+// ✅ Create transport
 const transport = pino.transport({
   targets: transportTargets,
 });
+
+// ✅ Logger instance
 export const logger = pino(
   {
     level: process.env.LOG_LEVEL || 'info',
@@ -161,7 +169,6 @@ export const logger = pino(
   },
   transport
 );
-
 
 // ─── Graceful shutdown ───────────────────────────────────────────────────────
 
