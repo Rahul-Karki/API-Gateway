@@ -15,8 +15,6 @@ import { trace, metrics, context, SpanStatusCode } from '@opentelemetry/api';
 import pino from 'pino';
 import pinoLoki from 'pino-loki';
 import type { LokiOptions } from 'pino-loki';
-import winston from 'winston';
-import  LokiTransport  from 'winston-loki';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -98,45 +96,53 @@ export const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
 
 // ─── Structured Logger (Pino → Grafana Cloud Loki) ───────────────────────────
 
-// ─── Winston Logger Configuration ───────────────────────────────────────────
-
-export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  defaultMeta: {
-    service: SERVICE_NAME,
-    version: SERVICE_VERSION,
-    env: NODE_ENV,
-  },
-  transports: [
-    // Loki transport (equivalent to pino-loki)
-    new LokiTransport({
-      host: 'https://logs-prod-028.grafana.net',
-      basicAuth: `${LOKI_INSTANCE_ID}:${GRAFANA_API_TOKEN}`,
-      labels: {
-        service: SERVICE_NAME,
-        version: SERVICE_VERSION,
-        env: NODE_ENV,
+const transport = pino.transport({
+  targets: [
+    {
+      target: 'pino-loki',
+      level: process.env.LOG_LEVEL || 'info',
+      options: {
+        host: GRAFANA_LOKI_URL,    // ✅ Use environment variable
+        basicAuth: {
+          username: LOKI_INSTANCE_ID,
+          password: GRAFANA_API_TOKEN,
+        },
+        labels: {
+          service: SERVICE_NAME,
+          version: SERVICE_VERSION,
+          env: NODE_ENV,
+        },
+        batching: {
+          interval: 5000     // ✅ 5 seconds (not 5ms!)
+        },
+        silenceErrors: false,
+      } satisfies LokiOptions,
+    },
+    {
+      target: 'pino/file',          // ✅ built into pino, always available
+      level: process.env.LOG_LEVEL || 'info',
+      options: {
+        destination: 1,             // 1 = stdout (Render terminal)
       },
-      batching: true,
-      interval: 5,
-      json: true,
-      replaceTimestamp: true,
-      silent: false,  // equivalent to silenceErrors: false
-    }),
-    
-    // Console transport (equivalent to pino/file with destination: 1)
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      ),
-    }),
+    },
   ],
 });
+
+export const logger = pino(
+  {
+    level: process.env.LOG_LEVEL || 'info',
+    base: {
+      service: SERVICE_NAME,
+      version: SERVICE_VERSION,
+      env: NODE_ENV,
+    },
+    formatters: {
+      level(label) { return { level: label }; },
+    },
+    timestamp: pino.stdTimeFunctions.epochTime, // ✅ epoch, not isoTime
+  },
+  transport,
+);
 
 // Create Loki transport
 
