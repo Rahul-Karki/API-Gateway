@@ -13,27 +13,22 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { trace, metrics, context, SpanStatusCode } from '@opentelemetry/api';
 import pino from 'pino';
-import pinoLoki from 'pino-loki';
 import type { LokiOptions } from 'pino-loki';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const GRAFANA_OTLP_ENDPOINT = process.env.GRAFANA_OTLP_ENDPOINT!;
-const OPTL_INSTANCE_ID     = process.env.OPTL_INSTANCE_ID!;
-const GRAFANA_API_TOKEN    = process.env.GRAFANA_API_TOKEN!;
+const GRAFANA_OTLP_ENDPOINT = process.env.GRAFANA_OTLP_ENDPOINT || '';
+const OPTL_INSTANCE_ID     = process.env.OPTL_INSTANCE_ID || '';
+const GRAFANA_API_TOKEN    = process.env.GRAFANA_API_TOKEN || '';
 const SERVICE_NAME         = process.env.SERVICE_NAME || 'my-backend';
 const SERVICE_VERSION      = process.env.SERVICE_VERSION || '1.0.0';
 const NODE_ENV             = process.env.NODE_ENV || 'production';
-const GRAFANA_LOKI_URL     = process.env.GRAFANA_LOKI_URL!;
-const LOKI_INSTANCE_ID       = process.env.LOKI_INSTANCE_ID!;
+const GRAFANA_LOKI_URL     = process.env.GRAFANA_LOKI_URL || '';
+const LOKI_INSTANCE_ID     = process.env.LOKI_INSTANCE_ID || '';
 
-const AUTH_HEADER = Buffer
-  .from(`${OPTL_INSTANCE_ID}:${GRAFANA_API_TOKEN}`)
-  .toString('base64');
-
-const OTLP_HEADERS = {
-  Authorization: `Basic ${AUTH_HEADER}`,
-};
+const AUTH_HEADER = OPTL_INSTANCE_ID && GRAFANA_API_TOKEN
+  ? Buffer.from(`${OPTL_INSTANCE_ID}:${GRAFANA_API_TOKEN}`).toString('base64')
+  : '';
 
 // ─── Shared Resource ─────────────────────────────────────────────────────────
 
@@ -45,22 +40,35 @@ const resource = new Resource({
 
 // ─── Metrics (Prometheus / OTLP → Grafana Cloud) ────────────────────────────
 
-const metricExporter = new OTLPMetricExporter({
-  url: `${GRAFANA_OTLP_ENDPOINT}/v1/metrics`,
-  headers: OTLP_HEADERS,
-});
+let meterProvider: MeterProvider | null = null;
+let meter: any = null;
 
-export const meterProvider = new MeterProvider({
-  resource,
-  readers: [
-    new PeriodicExportingMetricReader({
-      exporter: metricExporter,
-      exportIntervalMillis: 15_000,
-    }),
-  ],
-});
+if (GRAFANA_OTLP_ENDPOINT && AUTH_HEADER) {
+  console.log('✅ Grafana OTLP Metrics enabled:', GRAFANA_OTLP_ENDPOINT);
+  const metricExporter = new OTLPMetricExporter({
+    url: `${GRAFANA_OTLP_ENDPOINT}/v1/metrics`,
+    headers: { Authorization: `Basic ${AUTH_HEADER}` },
+  });
 
-const meter = meterProvider.getMeter(SERVICE_NAME);
+  meterProvider = new MeterProvider({
+    resource,
+    readers: [
+      new PeriodicExportingMetricReader({
+        exporter: metricExporter,
+        exportIntervalMillis: 15_000,
+      }),
+    ],
+  });
+  
+  meter = meterProvider.getMeter(SERVICE_NAME);
+} else {
+  console.log('⚠️  Grafana OTLP Metrics NOT configured.');
+  // Create a no-op meter provider
+  meterProvider = new MeterProvider({ resource });
+  meter = meterProvider.getMeter(SERVICE_NAME);
+}
+
+export { meterProvider };
 
 // Built-in application metrics
 export const appMetrics = {
@@ -76,56 +84,72 @@ export const appMetrics = {
 
 // ─── Traces (OTLP → Grafana Cloud Tempo) ────────────────────────────────────
 
-const traceExporter = new OTLPTraceExporter({
-  url: `${GRAFANA_OTLP_ENDPOINT}/v1/traces`,
-  headers: OTLP_HEADERS,
-});
+let tracerProvider: NodeTracerProvider;
 
-export const tracerProvider = new NodeTracerProvider({
-  resource,
-  spanProcessors: [new SimpleSpanProcessor(traceExporter)],
-});
+if (GRAFANA_OTLP_ENDPOINT && AUTH_HEADER) {
+  console.log('✅ Grafana OTLP Traces enabled:', GRAFANA_OTLP_ENDPOINT);
+  const traceExporter = new OTLPTraceExporter({
+    url: `${GRAFANA_OTLP_ENDPOINT}/v1/traces`,
+    headers: { Authorization: `Basic ${AUTH_HEADER}` },
+  });
+  tracerProvider = new NodeTracerProvider({
+    resource,
+    spanProcessors: [new SimpleSpanProcessor(traceExporter)],
+  });
+} else {
+  console.log('⚠️  Grafana OTLP Traces NOT configured.');
+  tracerProvider = new NodeTracerProvider({ resource });
+}
 
 tracerProvider.register();
 
+export { tracerProvider };
+
 export const tracer = trace.getTracer(SERVICE_NAME, SERVICE_VERSION);
 
-// ─── Structured Logger (Pino → Grafana Cloud Loki) ───────────────────────────
-// NEW: Directly sends logs to Loki via HTTP (no Alloy/Promtail needed)
+// ─── Structured Logger (Pino) ────────────────────────────────────────────────
 
+// Build transport targets dynamically
+const transportTargets: any[] = [];
 
-// ─── Structured Logger (Pino → Grafana Cloud Loki) ───────────────────────────
+// ✅ ALWAYS add stdout (for Render logs)
+transportTargets.push({
+  target: 'pino/file',
+  level: process.env.LOG_LEVEL || 'info',
+  options: {
+    destination: 1, // stdout
+  },
+});
+
+// ✅ ONLY add Loki if environment variables are set
+if (GRAFANA_LOKI_URL && LOKI_INSTANCE_ID && GRAFANA_API_TOKEN) {
+  console.log('✅ Grafana Loki enabled:', GRAFANA_LOKI_URL);
+  transportTargets.push({
+    target: 'pino-loki',
+    level: process.env.LOG_LEVEL || 'info',
+    options: {
+      host: GRAFANA_LOKI_URL,
+      basicAuth: {
+        username: LOKI_INSTANCE_ID,
+        password: GRAFANA_API_TOKEN,
+      },
+      labels: {
+        service: SERVICE_NAME,
+        version: SERVICE_VERSION,
+        env: NODE_ENV,
+      },
+      batching: {
+        interval: 5000, // 5 seconds
+      },
+      silenceErrors: false,
+    } satisfies LokiOptions,
+  });
+} else {
+  console.log('⚠️  Grafana Loki NOT configured. Logs will only go to stdout.');
+}
 
 const transport = pino.transport({
-  targets: [
-    {
-      target: 'pino-loki',
-      level: process.env.LOG_LEVEL || 'info',
-      options: {
-        host: GRAFANA_LOKI_URL,    // ✅ Use environment variable
-        basicAuth: {
-          username: LOKI_INSTANCE_ID,
-          password: GRAFANA_API_TOKEN,
-        },
-        labels: {
-          service: SERVICE_NAME,
-          version: SERVICE_VERSION,
-          env: NODE_ENV,
-        },
-        batching: {
-          interval: 5000     // ✅ 5 seconds (not 5ms!)
-        },
-        silenceErrors: false,
-      } satisfies LokiOptions,
-    },
-    {
-      target: 'pino/file',          // ✅ built into pino, always available
-      level: process.env.LOG_LEVEL || 'info',
-      options: {
-        destination: 1,             // 1 = stdout (Render terminal)
-      },
-    },
-  ],
+  targets: transportTargets,
 });
 
 export const logger = pino(
@@ -135,16 +159,12 @@ export const logger = pino(
       service: SERVICE_NAME,
       version: SERVICE_VERSION,
       env: NODE_ENV,
+      pid: process.pid,
     },
-    formatters: {
-      level(label) { return { level: label }; },
-    },
-    timestamp: pino.stdTimeFunctions.epochTime, // ✅ epoch, not isoTime
+    timestamp: pino.stdTimeFunctions.isoTime,
   },
-  transport,
+  transport
 );
-
-// Create Loki transport
 
 
 // ─── Graceful shutdown ───────────────────────────────────────────────────────
