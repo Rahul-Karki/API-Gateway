@@ -109,6 +109,12 @@ const refreshAccessToken = async (req: Request, res: Response) => {
       'access_token.generated': true
     });
 
+    res.cookie("accessToken", newAccessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    });
+
     // Success - final response
     const duration = Date.now() - startTime;
     

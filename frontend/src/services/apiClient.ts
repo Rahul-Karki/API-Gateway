@@ -34,8 +34,7 @@ apiClient.interceptors.response.use(
     const isAuthRoute =
       originalRequest.url?.includes("/api/auth/login") ||
       originalRequest.url?.includes("/api/auth/signup") ||
-      originalRequest.url?.includes("/api/auth/forgot-password") ||
-      originalRequest.url?.includes("/api/auth/me")  // Don't refresh on /me endpoint
+      originalRequest.url?.includes("/api/auth/forgot-password")
 
     if (isAuthRoute) {
       return Promise.reject(error)  // just pass error to the caller, no refresh attempt
