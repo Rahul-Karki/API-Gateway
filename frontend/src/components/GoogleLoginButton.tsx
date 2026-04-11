@@ -11,7 +11,7 @@ type GoogleAuthButtonProps = {
 
 const GoogleAuthButton = ({ className }: GoogleAuthButtonProps) => {
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { setUser, setIsAuthenticated } = useAuth()
   const hostRef = useRef<HTMLDivElement>(null)
   const [btnWidth, setBtnWidth] = useState<number>(320)
 
@@ -44,6 +44,7 @@ const GoogleAuthButton = ({ className }: GoogleAuthButtonProps) => {
 
               const userRes = await apiClient.get("/api/auth/me")
               setUser(userRes.data.user)
+              setIsAuthenticated(true)
 
               navigate("/home")
             } catch (err: any) {

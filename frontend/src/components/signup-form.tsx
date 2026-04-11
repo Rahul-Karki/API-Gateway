@@ -18,7 +18,7 @@ type FormData = {
 
 export default function SignupForm() {
   const navigate = useNavigate();
-  const { setUser  } = useAuth();
+  const { setUser, setIsAuthenticated } = useAuth();
 
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -73,6 +73,7 @@ export default function SignupForm() {
 
       const userRes = await apiClient.get("/api/auth/me");
       setUser(userRes.data.user);
+      setIsAuthenticated(true);
       navigate("/home");
      
     } catch (err: any) {

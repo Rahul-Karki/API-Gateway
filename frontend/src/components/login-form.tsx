@@ -14,7 +14,7 @@ type FormData = {
 
 export default function LoginForm() {
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { setUser, setIsAuthenticated } = useAuth()
 
   const [formData, setFormData] = useState<FormData>({
     email: "",
@@ -52,10 +52,11 @@ export default function LoginForm() {
     setMessage("");
 
     try {
-    await apiClient.post("/api/auth/login", formData)
+      await apiClient.post("/api/auth/login", formData)
 
       const userRes = await apiClient.get("/api/auth/me")
       setUser(userRes.data.user)
+      setIsAuthenticated(true)
 
       setMessage("Login successful")
       navigate("/home")
