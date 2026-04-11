@@ -124,7 +124,6 @@ export default function SignupForm() {
                 onChange={handleChange}
                 required
                 style={{ width: "100%", paddingRight: "40px" }}
-                placeholder="Min 8 chars, uppercase, lowercase, number, symbol"
               />
               <button
                 type="button"
