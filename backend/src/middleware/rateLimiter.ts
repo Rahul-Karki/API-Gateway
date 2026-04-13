@@ -27,29 +27,34 @@ function getClientIdentifier(req: Request): string {
   return `ip:${req.ip || req.socket.remoteAddress || "unknown"}`;
 }
 
+const GENERAL_LIMIT_POINTS = 2;
+const GENERAL_LIMIT_DURATION = 1;
+const AUTH_LIMIT_POINTS = 2;
+const AUTH_LIMIT_DURATION = 1;
+
 /**
- * General API rate limiter - 100 req/min
+ * General API rate limiter - 2 req/sec
  * Use for general endpoints
  */
 const generalRateLimiter = new RateLimiterRedis({
   storeClient: redis,
   keyPrefix: "rl:general",
-  points: 100,
-  duration: 60,
-  blockDuration: 60, // seconds
+  points: GENERAL_LIMIT_POINTS,
+  duration: GENERAL_LIMIT_DURATION,
+  blockDuration: 1, // seconds
   inMemoryBlockOnConsumed: 100, // Keep last 100 consumption data in memory
 });
 
 /**
- * Strict rate limiter for auth endpoints - 5 req/min
+ * Strict rate limiter for auth endpoints - 2 req/sec
  * Use for signup, login, password reset
  */
 const authRateLimiter = new RateLimiterRedis({
   storeClient: redis,
   keyPrefix: "rl:auth",
-  points: 5,
-  duration: 60,
-  blockDuration: 300, // seconds
+  points: AUTH_LIMIT_POINTS,
+  duration: AUTH_LIMIT_DURATION,
+  blockDuration: 1, // seconds
 });
 
 /**
@@ -64,7 +69,7 @@ export const apiLimiter = async (
   try {
     const identifier = getClientIdentifier(req);
     const rlRes = await generalRateLimiter.consume(identifier);
-    res.setHeader("X-RateLimit-Limit", "100");
+    res.setHeader("X-RateLimit-Limit", String(GENERAL_LIMIT_POINTS));
     res.setHeader("X-RateLimit-Remaining", String(Math.max(rlRes.remainingPoints, 0)));
     next();
   } catch (error: unknown) {
@@ -98,7 +103,7 @@ export const authLimiter = async (
   try {
     const identifier = getClientIdentifier(req);
     const rlRes = await authRateLimiter.consume(identifier);
-    res.setHeader("X-RateLimit-Limit", "5");
+    res.setHeader("X-RateLimit-Limit", String(AUTH_LIMIT_POINTS));
     res.setHeader("X-RateLimit-Remaining", String(Math.max(rlRes.remainingPoints, 0)));
     next();
   } catch (error: unknown) {

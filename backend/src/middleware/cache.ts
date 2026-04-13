@@ -99,6 +99,12 @@ export function cacheMiddleware(
   ttl: number = DEFAULT_TTL,
   options?: CacheOptions
 ) {
+  const setCacheHeaders = (res: Response, status: string, cacheControl: string) => {
+    res.setHeader("X-Cache-Status", status);
+    res.setHeader("X-Cache", status);
+    res.setHeader("Cache-Control", cacheControl);
+  };
+
   return async (
     req: Request,
     res: Response,
@@ -138,16 +144,14 @@ export function cacheMiddleware(
 
           if (ageSeconds <= envelope.freshFor) {
             logger.debug({ path: req.path, key: cacheKey, ageSeconds }, "Cache HIT");
-            res.setHeader("X-Cache", "HIT");
-            res.setHeader("Cache-Control", `public, max-age=${ttl}`);
+            setCacheHeaders(res, "HIT", `public, max-age=${ttl}`);
             res.json(envelope.body);
             return;
           }
 
           if (ageSeconds <= envelope.freshFor + envelope.staleFor) {
             logger.debug({ path: req.path, key: cacheKey, ageSeconds }, "Cache STALE");
-            res.setHeader("X-Cache", "STALE");
-            res.setHeader("Cache-Control", `public, max-age=${ttl}, stale-while-revalidate=${staleSeconds}`);
+            setCacheHeaders(res, "STALE", `public, max-age=${ttl}, stale-while-revalidate=${staleSeconds}`);
             res.json(envelope.body);
 
             // Force a refresh on the next request without blocking current response.
@@ -189,8 +193,7 @@ export function cacheMiddleware(
             );
         }
 
-        res.setHeader("X-Cache", "MISS");
-        res.setHeader("Cache-Control", `public, max-age=${ttl}, stale-while-revalidate=${staleSeconds}`);
+        setCacheHeaders(res, "MISS", `public, max-age=${ttl}, stale-while-revalidate=${staleSeconds}`);
         return originalJson.call(this, body);
       };
 
