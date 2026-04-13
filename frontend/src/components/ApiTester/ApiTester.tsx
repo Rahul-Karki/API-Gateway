@@ -39,6 +39,28 @@ const CACHE_COLORS: Record<string, string> = {
   "-": "#4a5568",
 }
 
+function normalizeCacheHeader(value: unknown): string[] {
+  return String(value ?? "")
+    .split(",")
+    .map((part) => part.trim().toUpperCase())
+    .filter(Boolean)
+}
+
+function resolveCacheStatus(headers: Record<string, any>): string {
+  const cacheStatusValues = normalizeCacheHeader(headers["x-cache-status"])
+  const cacheValues = normalizeCacheHeader(headers["x-cache"])
+
+  const ordered = [...cacheStatusValues, ...cacheValues]
+
+  if (ordered.includes("HIT")) return "HIT"
+  if (ordered.includes("MISS")) return "MISS"
+  if (ordered.includes("BYPASS")) return "BYPASS"
+  if (ordered.includes("EXPIRED")) return "EXPIRED"
+  if (ordered.includes("STALE")) return "STALE"
+
+  return ordered[0] || "MISS"
+}
+
 function buildUrl(baseUrl: string, method: string, id: string): string {
   if (method === "DELETE") return `/api/products/delete/${id}`
   if (method === "PUT" || method === "PATCH") return `/api/products/update/${id}`
@@ -608,8 +630,7 @@ export default function ApiTester() {
         try {
           const res = await apiClient({ url, method, data: parsedBody })
           const latency = performance.now() - start
-          const rawCache = res.headers["x-cache-status"] || res.headers["x-cache"] || ""
-          const cacheStatus = rawCache.toString().toUpperCase().trim() || "MISS"
+          const cacheStatus = resolveCacheStatus(res.headers)
 
           if (url.includes("/all") && res.data?.products) {
             res.data.products.forEach((p: any) => { productsCacheRef.current[p._id] = p })
