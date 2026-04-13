@@ -6,6 +6,7 @@ import {
   useMemo,
   ReactNode,
 } from "react"
+import axios from "axios"
 import { AuthContextType , User } from "@/types/auth"
 import apiClient from "@/services/apiClient"
 
@@ -23,6 +24,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const baseURL = "https://gateway-7dsr.onrender.com"
+
     const fetchUser = async () => {
       try {
         const res = await apiClient.get<{ user: User }>("/api/auth/me", {
@@ -31,8 +34,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(res.data.user)
         setIsAuthenticated(true)
       } catch (error) {
-        setUser(null)
-        setIsAuthenticated(false)
+        const status = axios.isAxiosError(error) ? error.response?.status : undefined
+
+        if (status === 401 || status === 403) {
+          try {
+            await axios.post(
+              `${baseURL}/api/refresh`,
+              {},
+              { withCredentials: true }
+            )
+
+            const retryRes = await apiClient.get<{ user: User }>("/api/auth/me", {
+              withCredentials: true,
+            })
+
+            setUser(retryRes.data.user)
+            setIsAuthenticated(true)
+            return
+          } catch {
+            setUser(null)
+            setIsAuthenticated(false)
+          }
+        } else {
+          setUser(null)
+          setIsAuthenticated(false)
+        }
       } finally {
         setLoading(false)
       }
