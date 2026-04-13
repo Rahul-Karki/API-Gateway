@@ -747,6 +747,24 @@ const forgotPassword = async (req: Request, res: Response) => {
 
     logger.debug({ event: 'forgot_password', status: 'step', step: 'user_found', userFound: !!user, email: email.toLowerCase() }, 'Forgot password user lookup complete');
 
+    if (user.authProvider?.includes('google') && !user.password) {
+      span.setAttributes({
+        'forgot_password.success': false,
+        'error.type': 'oauth_account',
+        'auth_provider': user.authProvider?.join(',') || 'unknown'
+      });
+
+      logger.info({
+        type: 'forgot_password_failed',
+        email: email.toLowerCase(),
+        reason: 'google_login_account'
+      }, 'Forgot password rejected for Google login account');
+
+      return res.status(400).json({
+        message: 'This account uses Google login. Please continue with Google.',
+      });
+    }
+
     // Check password reset cooldown
     if (
       user.passwordResetAt &&
@@ -815,7 +833,7 @@ const forgotPassword = async (req: Request, res: Response) => {
     }, 'Sending password reset email in background');
     
     sendEmail({
-      to: "rahulkarki0608@gmail.com", // Note: You might want to change this to user.email
+      to: user.email,
       subject: "Password Reset Request",
       html: forgotPasswordTemplate(link),
     }).catch((err) => {

@@ -25,7 +25,7 @@ const userSchema = new Schema<IUser>({
     password: {
       type: String,
       required: function (this: any) {
-        return this.authProvider === "local"; // 👈 key fix
+        return Array.isArray(this.authProvider) && this.authProvider.includes("local");
       },
       select: false,
     },
