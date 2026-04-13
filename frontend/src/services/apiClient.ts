@@ -24,6 +24,12 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest: any = error.config;
 
+    // Auth bootstrap should fail quietly when no session exists.
+    // Redirecting here causes a reload loop because AuthProvider calls /me on every page load.
+    if (originalRequest.url?.includes("/api/auth/me")) {
+      return Promise.reject(error);
+    }
+
     // ✅ FIX 1: Correct refresh URL check
     if (originalRequest.url?.includes("/api/refresh")) {
       window.location.href = "/login";
