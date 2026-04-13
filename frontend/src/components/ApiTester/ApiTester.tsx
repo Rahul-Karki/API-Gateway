@@ -263,7 +263,7 @@ function ProgressBar({ logs, total, progress }: { logs: LogEntry[]; total: numbe
 function StatsStrip({ stats }: { stats: ReturnType<typeof computeStats> }) {
   return (
     <div style={{
-      display: "grid", gridTemplateColumns: "repeat(6, 1fr)",
+      display: "grid", gridTemplateColumns: "repeat(7, 1fr)",
       borderBottom: "1px solid #1e2d3d", background: "#0a0f14", flexShrink: 0,
     }}>
       {[
@@ -272,6 +272,7 @@ function StatsStrip({ stats }: { stats: ReturnType<typeof computeStats> }) {
         { label: "RATE LIMITED",value: stats.rateLimited,color: "#f87171" },
         { label: "UNAUTHORIZED",value: stats.unauthorized,color:"#fb923c" },
         { label: "CACHE HITS",  value: stats.cacheHit,   color: "#a78bfa" },
+        { label: "CACHE MISSES",value: stats.cacheMiss,  color: "#f59e0b" },
         { label: "AVG LATENCY", value: `${stats.avgLatency}ms`, color: "#34d399" },
       ].map(s => (
         <div key={s.label} style={{ padding: "12px 14px", borderRight: "1px solid #1e2d3d" }}>
@@ -566,6 +567,7 @@ function computeStats(logs: LogEntry[]) {
     rateLimited: logs.filter(l => l.rateLimited).length,
     unauthorized: logs.filter(l => !l.authorized && !l.rateLimited).length,
     cacheHit: logs.filter(l => l.cache === "HIT").length,
+    cacheMiss: logs.filter(l => l.cache === "MISS").length,
     avgLatency: logs.length
       ? (logs.reduce((a, b) => a + b.latency, 0) / logs.length).toFixed(1)
       : "—",
