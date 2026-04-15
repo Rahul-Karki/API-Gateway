@@ -11,9 +11,9 @@ import cookieParser from 'cookie-parser';
 import { httpInstrumentation } from './observability/middleware/httpMiddleware';
 import { errorHandler } from './observability/middleware/errorMiddlware';
 import { logger } from './observability/observability';
-import { apiLimiter } from './middleware/rateLimiter';
-import { cacheMiddleware } from './middleware/cache';
-import { checkRedisHealth, closeRedis } from './config/redis';
+import { generalRateLimiter, authRateLimiter } from './middleware/distributed-rate-limit';
+import { distributedCacheMiddleware } from './middleware/distributed-cache';
+import { checkRedisHealth, closeRedis } from './config/redis-upstash';
 
 const app = express();
 
@@ -32,7 +32,7 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/health') || req.path === '/') {
     return next();
   }
-  apiLimiter(req, res, next);
+  generalRateLimiter()(req, res, next);
 });
 
 const PORT = process.env.PORT || 5000;
@@ -69,11 +69,11 @@ app.get('/', (req, res) => {
 
 connectDB();
 
-// Auth routes with strict rate limiting
-app.use('/api/auth', authRouter);
+// Auth routes with strict rate limiting (5 req/60s per IP)
+app.use('/api/auth', authRateLimiter(), authRouter);
 
-// Product routes with caching (60s TTL)
-app.use('/api/products', cacheMiddleware(60, { resource: 'products' }), productRouter);
+// Product routes with distributed caching (60s TTL, 30s stale)
+app.use('/api/products', distributedCacheMiddleware({ ttl: 60, stale: 30 }), productRouter);
 
 // Other routes
 app.use('/api', refreshRouter);
