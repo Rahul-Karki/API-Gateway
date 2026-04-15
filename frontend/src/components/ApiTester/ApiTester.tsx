@@ -47,10 +47,11 @@ function normalizeCacheHeader(value: unknown): string[] {
 }
 
 function resolveCacheStatus(headers: Record<string, any>): string {
+  const edgeStatusValues = normalizeCacheHeader(headers["x-edge-cache"])
   const cacheStatusValues = normalizeCacheHeader(headers["x-cache-status"])
   const cacheValues = normalizeCacheHeader(headers["x-cache"])
 
-  const ordered = [...cacheStatusValues, ...cacheValues]
+  const ordered = [...edgeStatusValues, ...cacheStatusValues, ...cacheValues]
 
   if (ordered.includes("HIT")) return "HIT"
   if (ordered.includes("MISS")) return "MISS"
