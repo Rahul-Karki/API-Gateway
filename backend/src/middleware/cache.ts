@@ -8,6 +8,9 @@ const CACHE_VERSION = "v1";
 const DEFAULT_STALE_SECONDS = Number(process.env.CACHE_STALE_SECONDS || 30);
 const CACHE_TTL_JITTER_SECONDS = Number(process.env.CACHE_TTL_JITTER_SECONDS || 10);
 const CACHE_SCAN_COUNT = Number(process.env.CACHE_SCAN_COUNT || 500);
+const CACHE_LOCK_TTL_MS = Number(process.env.CACHE_LOCK_TTL_MS || 4000);
+const CACHE_WAIT_TOTAL_MS = Number(process.env.CACHE_WAIT_TOTAL_MS || 800);
+const CACHE_WAIT_POLL_MS = Number(process.env.CACHE_WAIT_POLL_MS || 50);
 
 type CacheOptions = {
   includeUser?: boolean;
@@ -22,6 +25,25 @@ type CacheEnvelope = {
   freshFor: number;
   staleFor: number;
 };
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseEnvelope(cached: string): CacheEnvelope | null {
+  const parsed = JSON.parse(cached) as CacheEnvelope | unknown;
+  if (
+    typeof parsed === "object" &&
+    parsed !== null &&
+    "body" in parsed &&
+    "cachedAt" in parsed &&
+    "freshFor" in parsed &&
+    "staleFor" in parsed
+  ) {
+    return parsed as CacheEnvelope;
+  }
+  return null;
+}
 
 function normalizeQuery(
   query: Request["query"],
@@ -122,6 +144,7 @@ export function cacheMiddleware(
     }
 
     const cacheKey = generateCacheKey(req, options);
+    const lockKey = `${cacheKey}:lock`;
     const staleSeconds = options?.staleSeconds ?? DEFAULT_STALE_SECONDS;
 
     try {
@@ -129,17 +152,9 @@ export function cacheMiddleware(
       const cached = await redis.get(cacheKey);
 
       if (cached) {
-        const parsed = JSON.parse(cached) as CacheEnvelope | unknown;
+        const envelope = parseEnvelope(cached);
 
-        if (
-          typeof parsed === "object" &&
-          parsed !== null &&
-          "body" in parsed &&
-          "cachedAt" in parsed &&
-          "freshFor" in parsed &&
-          "staleFor" in parsed
-        ) {
-          const envelope = parsed as CacheEnvelope;
+        if (envelope) {
           const ageSeconds = Math.floor((Date.now() - envelope.cachedAt) / 1000);
 
           if (ageSeconds <= envelope.freshFor) {
@@ -170,6 +185,36 @@ export function cacheMiddleware(
         }
       }
 
+      // Prevent thundering herd: one request refreshes, others briefly wait for warm cache.
+      const lockAcquired = await redis.set(lockKey, "1", "PX", CACHE_LOCK_TTL_MS, "NX");
+      if (!lockAcquired) {
+        const waitStart = Date.now();
+        while (Date.now() - waitStart < CACHE_WAIT_TOTAL_MS) {
+          await sleep(CACHE_WAIT_POLL_MS);
+          const warmed = await redis.get(cacheKey);
+          if (!warmed) {
+            continue;
+          }
+
+          const warmedEnvelope = parseEnvelope(warmed);
+          if (warmedEnvelope) {
+            const ageSeconds = Math.floor((Date.now() - warmedEnvelope.cachedAt) / 1000);
+            if (ageSeconds <= warmedEnvelope.freshFor) {
+              logger.debug({ path: req.path, key: cacheKey, ageSeconds }, "Cache HIT (wait)");
+              setCacheHeaders(res, "HIT", `public, max-age=${ttl}`);
+              res.json(warmedEnvelope.body);
+              return;
+            }
+          } else {
+            logger.debug({ path: req.path, key: cacheKey }, "Cache HIT (legacy wait)");
+            res.setHeader("X-Cache", "HIT");
+            res.setHeader("Cache-Control", `public, max-age=${ttl}`);
+            res.json(JSON.parse(warmed));
+            return;
+          }
+        }
+      }
+
       // Cache miss - patch res.json to write to cache
       const originalJson = res.json.bind(res);
       res.json = function (body: unknown) {
@@ -193,12 +238,18 @@ export function cacheMiddleware(
             );
         }
 
+        // Ensure lock is released even if caching write fails.
+        redis.del(lockKey).catch((error) =>
+          logger.error({ error, key: lockKey }, "Failed to release cache lock")
+        );
+
         setCacheHeaders(res, "MISS", `public, max-age=${ttl}, stale-while-revalidate=${staleSeconds}`);
         return originalJson.call(this, body);
       };
 
       next();
     } catch (error) {
+      redis.del(lockKey).catch(() => undefined);
       logger.error({ error, key: cacheKey }, "Cache middleware error");
       // Fail open - continue without caching on error
       next();

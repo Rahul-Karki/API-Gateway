@@ -27,13 +27,13 @@ function getClientIdentifier(req: Request): string {
   return `ip:${req.ip || req.socket.remoteAddress || "unknown"}`;
 }
 
-const GENERAL_LIMIT_POINTS = 2;
-const GENERAL_LIMIT_DURATION = 1;
-const AUTH_LIMIT_POINTS = 2;
-const AUTH_LIMIT_DURATION = 1;
+const GENERAL_LIMIT_POINTS = Number(process.env.RATE_LIMIT_GENERAL_POINTS || 10);
+const GENERAL_LIMIT_DURATION = Number(process.env.RATE_LIMIT_GENERAL_DURATION || 1);
+const AUTH_LIMIT_POINTS = Number(process.env.RATE_LIMIT_AUTH_POINTS || 5);
+const AUTH_LIMIT_DURATION = Number(process.env.RATE_LIMIT_AUTH_DURATION || 60);
 
 /**
- * General API rate limiter - 2 req/sec
+ * General API rate limiter
  * Use for general endpoints
  */
 const generalRateLimiter = new RateLimiterRedis({
@@ -46,7 +46,7 @@ const generalRateLimiter = new RateLimiterRedis({
 });
 
 /**
- * Strict rate limiter for auth endpoints - 2 req/sec
+ * Strict rate limiter for auth endpoints
  * Use for signup, login, password reset
  */
 const authRateLimiter = new RateLimiterRedis({
@@ -78,9 +78,11 @@ export const apiLimiter = async (
         { type: "general", ip: req.ip, path: req.path, retryAfter: error.msBeforeNext },
         "Rate limit exceeded"
       );
+      const retryAfterSeconds = Math.ceil(error.msBeforeNext / 1000);
+      res.setHeader("Retry-After", String(retryAfterSeconds));
       res.status(429).json({
         error: "Too many requests",
-        retryAfter: Math.ceil(error.msBeforeNext / 1000),
+        retryAfter: retryAfterSeconds,
       });
       return;
     }
@@ -112,9 +114,11 @@ export const authLimiter = async (
         { type: "auth", ip: req.ip, path: req.path, retryAfter: error.msBeforeNext },
         "Auth rate limit exceeded"
       );
+      const retryAfterSeconds = Math.ceil(error.msBeforeNext / 1000);
+      res.setHeader("Retry-After", String(retryAfterSeconds));
       res.status(429).json({
         error: "Too many attempts. Please try again later.",
-        retryAfter: Math.ceil(error.msBeforeNext / 1000),
+        retryAfter: retryAfterSeconds,
       });
       return;
     }
