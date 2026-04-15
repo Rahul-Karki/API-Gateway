@@ -180,7 +180,7 @@ export function cacheMiddleware(
           logger.debug({ path: req.path, key: cacheKey }, "Cache HIT (legacy)");
           res.setHeader("X-Cache", "HIT");
           res.setHeader("Cache-Control", `public, max-age=${ttl}`);
-          res.json(parsed);
+          res.json(JSON.parse(cached));
           return;
         }
       }
