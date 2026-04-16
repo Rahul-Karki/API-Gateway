@@ -135,6 +135,15 @@ function getCacheStatus(
 }
 
 /**
+ * Attach timing headers so browser DevTools can separate backend time from network time.
+ */
+function setTimingHeaders(res: Response, status: string, durationMs: number): void {
+  const roundedDuration = Math.max(0, Math.round(durationMs));
+  res.setHeader("X-Backend-Duration", String(roundedDuration));
+  res.setHeader("Server-Timing", `cache;desc="${status}";dur=${roundedDuration}`);
+}
+
+/**
  * Distributed cache middleware factory
  */
 export function distributedCacheMiddleware(options?: CacheOptions) {
@@ -173,6 +182,7 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
       res.setHeader("X-Cache", "BYPASS");
       res.setHeader("X-Cache-Status", "BYPASS");
       res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
+      setTimingHeaders(res, "BYPASS", Date.now() - startedAt);
       appMetrics.cacheRequestsTotal.add(1, { cache: "redis", status: "BYPASS" });
       appMetrics.cacheMisses.add(1, { cache: "redis", status: "BYPASS" });
       appMetrics.cacheOperationDuration.record(Date.now() - startedAt, {
@@ -242,6 +252,7 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
           res.setHeader("X-Cache", "HIT");
           res.setHeader("X-Cache-Status", "HIT");
           res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
+          setTimingHeaders(res, "HIT", Date.now() - startedAt);
           res.json(entry.data);
           return;
         }
@@ -277,6 +288,7 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
           res.setHeader("X-Cache", "STALE");
           res.setHeader("X-Cache-Status", "STALE");
           res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
+          setTimingHeaders(res, "STALE", Date.now() - startedAt);
           res.json(entry.data);
 
           // Async refresh (don't wait)
@@ -336,6 +348,7 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
               res.setHeader("X-Cache", "WAIT-HIT");
               res.setHeader("X-Cache-Status", "WAIT-HIT");
               res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
+              setTimingHeaders(res, "WAIT-HIT", Date.now() - startedAt);
               res.json(warmedEntry.data);
               return;
             }
@@ -402,6 +415,7 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
         res.setHeader("X-Cache", "MISS");
         res.setHeader("X-Cache-Status", "MISS");
         res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
+        setTimingHeaders(res, "MISS", Date.now() - startedAt);
 
         return originalJson.call(this, body);
       };
@@ -431,6 +445,7 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
       );
       span.setStatus({ code: SpanStatusCode.ERROR, message: "cache_middleware_error" });
       span.setAttribute("cache.status", "ERROR");
+      setTimingHeaders(res, "ERROR", Date.now() - startedAt);
       span.end();
       // Clean up lock on error
       redisDel(lockKey).catch(() => undefined);
