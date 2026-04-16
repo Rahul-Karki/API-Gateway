@@ -32,6 +32,7 @@ const METHOD_COLORS: Record<string, string> = {
 const CACHE_COLORS: Record<string, string> = {
   HIT: "#22d3ee",
   MISS: "#f59e0b",
+  "WAIT-HIT": "#60a5fa",
   BYPASS: "#f87171",
   EXPIRED: "#fb923c",
   STALE: "#a78bfa",
@@ -54,12 +55,14 @@ function resolveCacheStatus(headers: Record<string, any>): string {
   const ordered = [...edgeStatusValues, ...cacheStatusValues, ...cacheValues]
 
   if (ordered.includes("HIT")) return "HIT"
+  if (ordered.includes("WAIT-HIT")) return "WAIT-HIT"
   if (ordered.includes("MISS")) return "MISS"
   if (ordered.includes("BYPASS")) return "BYPASS"
   if (ordered.includes("EXPIRED")) return "EXPIRED"
   if (ordered.includes("STALE")) return "STALE"
 
-  return ordered[0] || "MISS"
+  // No cache header means "unknown/not-exposed", not necessarily MISS.
+  return ordered[0] || "-"
 }
 
 function buildUrl(baseUrl: string, method: string, id: string): string {
@@ -592,7 +595,7 @@ export default function ApiTester() {
   const [url, setUrl]               = useState("/api/products/all")
   const [method, setMethod]         = useState("GET")
   const [body, setBody]             = useState("")
-  const [total, setTotal]           = useState(1)          // ← starts at 1
+  const [total, setTotal]           = useState(2)
   const [concurrency, setConcurrency] = useState(1)
   const [logs, setLogs]             = useState<LogEntry[]>([])
   const [running, setRunning]       = useState(false)
