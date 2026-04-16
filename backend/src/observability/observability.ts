@@ -78,6 +78,11 @@ export const appMetrics = {
   dbQueryDuration:     meter.createHistogram('db_query_duration_ms',     { description: 'DB query duration in ms', unit: 'ms' }),
   cacheHits:           meter.createCounter('cache_hits_total',           { description: 'Cache hits' }),
   cacheMisses:         meter.createCounter('cache_misses_total',         { description: 'Cache misses' }),
+  cacheOperationDuration: meter.createHistogram('cache_operation_duration_ms', { description: 'Cache middleware operation duration in ms', unit: 'ms' }),
+  rateLimitChecksTotal: meter.createCounter('rate_limit_checks_total', { description: 'Total rate-limit checks' }),
+  rateLimitBlockedTotal: meter.createCounter('rate_limit_blocked_total', { description: 'Total blocked requests due to rate limit' }),
+  rateLimitErrorsTotal: meter.createCounter('rate_limit_errors_total', { description: 'Total rate limiter errors (fail-open path)' }),
+  rateLimitDuration: meter.createHistogram('rate_limit_duration_ms', { description: 'Rate limiter decision duration in ms', unit: 'ms' }),
   queueSize:           meter.createObservableGauge('queue_size',         { description: 'Current queue size' }),
 };
 

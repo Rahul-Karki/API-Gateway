@@ -1,6 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import { redisExpire, redisIncr } from "../config/redis-upstash";
-import { logger } from "../observability/observability";
+import {
+  appMetrics,
+  logger,
+  tracer,
+  SpanStatusCode,
+} from "../observability/observability";
 
 /**
  * Distributed Rate Limiter using Upstash Redis
@@ -124,9 +129,29 @@ export function generalRateLimiter(
     next: NextFunction
   ): Promise<void> => {
     const identifier = getClientIdentifier(req);
+    const startedAt = Date.now();
+    const span = tracer.startSpan("rate_limit.check", {
+      attributes: {
+        "rate_limit.prefix": config.prefix,
+        "rate_limit.limit": config.points,
+        "rate_limit.duration_s": config.duration,
+        "rate_limit.identifier_type": identifier.type,
+        "http.method": req.method,
+        "http.path": req.path,
+      },
+    });
 
     try {
       const result = await trackRequest(identifier, config);
+      const durationMs = Date.now() - startedAt;
+      appMetrics.rateLimitChecksTotal.add(1, {
+        limiter: config.prefix,
+        identifier_type: identifier.type,
+      });
+      appMetrics.rateLimitDuration.record(durationMs, {
+        limiter: config.prefix,
+        identifier_type: identifier.type,
+      });
 
       // Always expose rate limit headers
       res.setHeader(
@@ -145,6 +170,17 @@ export function generalRateLimiter(
       if (result.exceeded) {
         const retryAfter = config.duration;
         res.setHeader("Retry-After", String(retryAfter));
+        appMetrics.rateLimitBlockedTotal.add(1, {
+          limiter: config.prefix,
+          identifier_type: identifier.type,
+        });
+        span.setAttributes({
+          "rate_limit.exceeded": true,
+          "rate_limit.remaining": result.remaining,
+          "rate_limit.count": result.count,
+          "rate_limit.reset_at": result.resetAt,
+        });
+        span.end();
 
         logger.warn(
           {
@@ -164,12 +200,32 @@ export function generalRateLimiter(
         return;
       }
 
+      span.setAttributes({
+        "rate_limit.exceeded": false,
+        "rate_limit.remaining": result.remaining,
+        "rate_limit.count": result.count,
+        "rate_limit.reset_at": result.resetAt,
+      });
+      span.end();
+
       next();
     } catch (error) {
+      const durationMs = Date.now() - startedAt;
+      appMetrics.rateLimitErrorsTotal.add(1, {
+        limiter: config.prefix,
+        identifier_type: identifier.type,
+      });
+      appMetrics.rateLimitDuration.record(durationMs, {
+        limiter: config.prefix,
+        identifier_type: identifier.type,
+      });
       logger.error(
         { error, path: req.path },
         "Rate limiter middleware error"
       );
+      span.setStatus({ code: SpanStatusCode.ERROR, message: "rate_limit_error" });
+      span.setAttribute("rate_limit.exceeded", false);
+      span.end();
       // Fail open - allow request on error
       res.setHeader(
         "X-RateLimit-Limit",
@@ -205,9 +261,29 @@ export function authRateLimiter(
     next: NextFunction
   ): Promise<void> => {
     const identifier = getClientIdentifier(req);
+    const startedAt = Date.now();
+    const span = tracer.startSpan("rate_limit.auth_check", {
+      attributes: {
+        "rate_limit.prefix": config.prefix,
+        "rate_limit.limit": config.points,
+        "rate_limit.duration_s": config.duration,
+        "rate_limit.identifier_type": identifier.type,
+        "http.method": req.method,
+        "http.path": req.path,
+      },
+    });
 
     try {
       const result = await trackRequest(identifier, config);
+      const durationMs = Date.now() - startedAt;
+      appMetrics.rateLimitChecksTotal.add(1, {
+        limiter: config.prefix,
+        identifier_type: identifier.type,
+      });
+      appMetrics.rateLimitDuration.record(durationMs, {
+        limiter: config.prefix,
+        identifier_type: identifier.type,
+      });
 
       // Always expose rate limit headers
       res.setHeader(
@@ -226,6 +302,17 @@ export function authRateLimiter(
       if (result.exceeded) {
         const retryAfter = config.duration;
         res.setHeader("Retry-After", String(retryAfter));
+        appMetrics.rateLimitBlockedTotal.add(1, {
+          limiter: config.prefix,
+          identifier_type: identifier.type,
+        });
+        span.setAttributes({
+          "rate_limit.exceeded": true,
+          "rate_limit.remaining": result.remaining,
+          "rate_limit.count": result.count,
+          "rate_limit.reset_at": result.resetAt,
+        });
+        span.end();
 
         logger.warn(
           {
@@ -246,12 +333,32 @@ export function authRateLimiter(
         return;
       }
 
+      span.setAttributes({
+        "rate_limit.exceeded": false,
+        "rate_limit.remaining": result.remaining,
+        "rate_limit.count": result.count,
+        "rate_limit.reset_at": result.resetAt,
+      });
+      span.end();
+
       next();
     } catch (error) {
+      const durationMs = Date.now() - startedAt;
+      appMetrics.rateLimitErrorsTotal.add(1, {
+        limiter: config.prefix,
+        identifier_type: identifier.type,
+      });
+      appMetrics.rateLimitDuration.record(durationMs, {
+        limiter: config.prefix,
+        identifier_type: identifier.type,
+      });
       logger.error(
         { error, path: req.path },
         "Auth rate limiter middleware error"
       );
+      span.setStatus({ code: SpanStatusCode.ERROR, message: "auth_rate_limit_error" });
+      span.setAttribute("rate_limit.exceeded", false);
+      span.end();
       // Fail open - allow request on error
       res.setHeader(
         "X-RateLimit-Limit",
@@ -278,9 +385,29 @@ export function createRateLimiter(
     next: NextFunction
   ): Promise<void> => {
     const identifier = getClientIdentifier(req);
+    const startedAt = Date.now();
+    const span = tracer.startSpan("rate_limit.custom_check", {
+      attributes: {
+        "rate_limit.prefix": config.prefix,
+        "rate_limit.limit": config.points,
+        "rate_limit.duration_s": config.duration,
+        "rate_limit.identifier_type": identifier.type,
+        "http.method": req.method,
+        "http.path": req.path,
+      },
+    });
 
     try {
       const result = await trackRequest(identifier, config);
+      const durationMs = Date.now() - startedAt;
+      appMetrics.rateLimitChecksTotal.add(1, {
+        limiter: config.prefix,
+        identifier_type: identifier.type,
+      });
+      appMetrics.rateLimitDuration.record(durationMs, {
+        limiter: config.prefix,
+        identifier_type: identifier.type,
+      });
 
       res.setHeader(
         "X-RateLimit-Limit",
@@ -298,6 +425,17 @@ export function createRateLimiter(
       if (result.exceeded) {
         const retryAfter = config.duration;
         res.setHeader("Retry-After", String(retryAfter));
+        appMetrics.rateLimitBlockedTotal.add(1, {
+          limiter: config.prefix,
+          identifier_type: identifier.type,
+        });
+        span.setAttributes({
+          "rate_limit.exceeded": true,
+          "rate_limit.remaining": result.remaining,
+          "rate_limit.count": result.count,
+          "rate_limit.reset_at": result.resetAt,
+        });
+        span.end();
 
         logger.warn(
           { prefix: config.prefix, identifier: identifier.value },
@@ -312,9 +450,29 @@ export function createRateLimiter(
         return;
       }
 
+      span.setAttributes({
+        "rate_limit.exceeded": false,
+        "rate_limit.remaining": result.remaining,
+        "rate_limit.count": result.count,
+        "rate_limit.reset_at": result.resetAt,
+      });
+      span.end();
+
       next();
     } catch (error) {
+      const durationMs = Date.now() - startedAt;
+      appMetrics.rateLimitErrorsTotal.add(1, {
+        limiter: config.prefix,
+        identifier_type: identifier.type,
+      });
+      appMetrics.rateLimitDuration.record(durationMs, {
+        limiter: config.prefix,
+        identifier_type: identifier.type,
+      });
       logger.error({ error }, "Custom rate limiter error");
+      span.setStatus({ code: SpanStatusCode.ERROR, message: "custom_rate_limit_error" });
+      span.setAttribute("rate_limit.exceeded", false);
+      span.end();
       // Fail open
       next();
     }

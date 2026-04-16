@@ -6,7 +6,12 @@ import {
   redisDel,
   redisLockAcquire,
 } from "../config/redis-upstash";
-import { logger } from "../observability/observability";
+import {
+  appMetrics,
+  logger,
+  tracer,
+  SpanStatusCode,
+} from "../observability/observability";
 
 /**
  * Distributed Cache Middleware for Redis Upstash
@@ -140,8 +145,21 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
+    const startedAt = Date.now();
+    const span = tracer.startSpan("cache.middleware", {
+      attributes: {
+        "cache.layer": "redis",
+        "http.method": req.method,
+        "http.route": req.baseUrl || req.path,
+        "http.path": req.path,
+      },
+    });
+
     // Only cache GET and HEAD
     if (req.method !== "GET" && req.method !== "HEAD") {
+      span.setAttribute("cache.skipped", true);
+      span.setAttribute("cache.skip_reason", "unsupported_method");
+      span.end();
       return next();
     }
 
@@ -153,6 +171,17 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
     ) {
       res.setHeader("X-Cache", "BYPASS");
       res.setHeader("X-Cache-Status", "BYPASS");
+      appMetrics.cacheMisses.add(1, { cache: "redis", status: "BYPASS" });
+      appMetrics.cacheOperationDuration.record(Date.now() - startedAt, {
+        cache: "redis",
+        status: "BYPASS",
+      });
+      span.setAttributes({
+        "cache.status": "BYPASS",
+        "cache.skipped": true,
+        "cache.skip_reason": "cache_control",
+      });
+      span.end();
       return next();
     }
 
@@ -174,6 +203,16 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
             { path: req.path, key: cacheKey },
             "Cache HIT"
           );
+          appMetrics.cacheHits.add(1, { cache: "redis", status: "HIT" });
+          appMetrics.cacheOperationDuration.record(Date.now() - startedAt, {
+            cache: "redis",
+            status: "HIT",
+          });
+          span.setAttributes({
+            "cache.status": "HIT",
+            "cache.key_present": true,
+          });
+          span.end();
           res.setHeader("X-Cache", "HIT");
           res.setHeader("X-Cache-Status", "HIT");
           res.setHeader(
@@ -190,6 +229,16 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
             { path: req.path, key: cacheKey },
             "Cache STALE"
           );
+          appMetrics.cacheHits.add(1, { cache: "redis", status: "STALE" });
+          appMetrics.cacheOperationDuration.record(Date.now() - startedAt, {
+            cache: "redis",
+            status: "STALE",
+          });
+          span.setAttributes({
+            "cache.status": "STALE",
+            "cache.key_present": true,
+          });
+          span.end();
           res.setHeader("X-Cache", "STALE");
           res.setHeader("X-Cache-Status", "STALE");
           res.setHeader(
@@ -223,6 +272,20 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
                 "Cache WAIT-HIT"
               );
               cacheStatus = "WAIT-HIT";
+              appMetrics.cacheHits.add(1, {
+                cache: "redis",
+                status: "WAIT-HIT",
+              });
+              appMetrics.cacheOperationDuration.record(Date.now() - startedAt, {
+                cache: "redis",
+                status: "WAIT-HIT",
+              });
+              span.setAttributes({
+                "cache.status": "WAIT-HIT",
+                "cache.waited": true,
+                "cache.key_present": true,
+              });
+              span.end();
               res.setHeader("X-Cache", "WAIT-HIT");
               res.setHeader("X-Cache-Status", "WAIT-HIT");
               res.setHeader(
@@ -268,6 +331,17 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
         redisDel(lockKey).catch(() => undefined);
 
         cacheStatus = "MISS";
+        appMetrics.cacheMisses.add(1, { cache: "redis", status: "MISS" });
+        appMetrics.cacheOperationDuration.record(Date.now() - startedAt, {
+          cache: "redis",
+          status: "MISS",
+        });
+        span.setAttributes({
+          "cache.status": "MISS",
+          "cache.key_present": false,
+          "http.status_code": statusCode,
+        });
+        span.end();
         res.setHeader("X-Cache", "MISS");
         res.setHeader("X-Cache-Status", "MISS");
         res.setHeader(
@@ -284,6 +358,14 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
         { error, path: req.path, key: cacheKey },
         "Cache middleware error"
       );
+      appMetrics.cacheMisses.add(1, { cache: "redis", status: "ERROR" });
+      appMetrics.cacheOperationDuration.record(Date.now() - startedAt, {
+        cache: "redis",
+        status: "ERROR",
+      });
+      span.setStatus({ code: SpanStatusCode.ERROR, message: "cache_middleware_error" });
+      span.setAttribute("cache.status", "ERROR");
+      span.end();
       // Clean up lock on error
       redisDel(lockKey).catch(() => undefined);
       // Fail open - continue without caching
