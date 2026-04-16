@@ -76,6 +76,7 @@ export const appMetrics = {
   httpErrorsTotal:     meter.createCounter('http_errors_total',          { description: 'Total HTTP errors' }),
   activeConnections:   meter.createUpDownCounter('active_connections',   { description: 'Active connections' }),
   dbQueryDuration:     meter.createHistogram('db_query_duration_ms',     { description: 'DB query duration in ms', unit: 'ms' }),
+  cacheRequestsTotal:  meter.createCounter('cache_requests_total',       { description: 'Total cache decisions by status' }),
   cacheHits:           meter.createCounter('cache_hits_total',           { description: 'Cache hits' }),
   cacheMisses:         meter.createCounter('cache_misses_total',         { description: 'Cache misses' }),
   cacheOperationDuration: meter.createHistogram('cache_operation_duration_ms', { description: 'Cache middleware operation duration in ms', unit: 'ms' }),
