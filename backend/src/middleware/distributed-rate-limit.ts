@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { redisGet, redisSet } from "../config/redis-upstash";
+import { redisExpire, redisIncr } from "../config/redis-upstash";
 import { logger } from "../observability/observability";
 
 /**
@@ -64,22 +64,20 @@ async function trackRequest(
   exceeded: boolean;
 }> {
   const now = Math.floor(Date.now() / 1000);
-  const windowEnd = now + config.duration;
-  const key = `${config.prefix}:${identifier.value}:${now}`;
+  const windowStart = Math.floor(now / config.duration) * config.duration;
+  const windowEnd = windowStart + config.duration;
+  const key = `${config.prefix}:${identifier.value}:${windowStart}`;
 
   try {
-    // Get current count
-    const currentStr = await redisGet(key);
-    let count = currentStr ? parseInt(currentStr, 10) : 0;
+    // Atomic increment to avoid race conditions under concurrency.
+    const count = await redisIncr(key);
+    if (count === null) {
+      throw new Error("Rate limiter increment failed");
+    }
 
-    // Increment
-    count++;
-    const succeeded = await redisSet(key, String(count), config.duration + 1);
-
-    if (!succeeded && count === 1) {
-      // First request - retry get
-      const retryStr = await redisGet(key);
-      count = retryStr ? parseInt(retryStr, 10) : 1;
+    // Set TTL only when key is first created.
+    if (count === 1) {
+      await redisExpire(key, config.duration + 1);
     }
 
     const exceeded = count > config.points;
@@ -157,12 +155,13 @@ export function generalRateLimiter(
           "Rate limit exceeded"
         );
 
-        return res.status(429).json({
+        res.status(429).json({
           error: "Too many requests",
           retryAfter,
           limit: config.points,
           remaining: 0,
         });
+        return;
       }
 
       next();
@@ -238,12 +237,13 @@ export function authRateLimiter(
           "Auth rate limit exceeded - possible brute force"
         );
 
-        return res.status(429).json({
+        res.status(429).json({
           error: "Too many attempts. Please try again later.",
           retryAfter,
           limit: config.points,
           remaining: 0,
         });
+        return;
       }
 
       next();
@@ -304,11 +304,12 @@ export function createRateLimiter(
           "Rate limit exceeded"
         );
 
-        return res.status(429).json({
+        res.status(429).json({
           error: "Rate limit exceeded",
           retryAfter,
           limit: config.points,
         });
+        return;
       }
 
       next();

@@ -151,6 +151,25 @@ export async function redisDel(...keys: string[]): Promise<number> {
   }
 }
 
+export async function redisIncr(key: string): Promise<number | null> {
+  try {
+    return await redis.incr(key);
+  } catch (error) {
+    logger.error({ error, key }, "Redis INCR failed");
+    return null;
+  }
+}
+
+export async function redisExpire(key: string, ttlSeconds: number): Promise<boolean> {
+  try {
+    const result = await redis.expire(key, ttlSeconds);
+    return result === 1;
+  } catch (error) {
+    logger.error({ error, key, ttlSeconds }, "Redis EXPIRE failed");
+    return false;
+  }
+}
+
 /**
  * Lock acquisition for distributed operations
  * Returns true if lock was acquired, false if already held
@@ -173,7 +192,7 @@ export async function redisLockAcquire(
  */
 export async function closeRedis(): Promise<void> {
   return new Promise((resolve) => {
-    if (redis.status === "closed") {
+    if (redis.status === "end") {
       resolve();
       return;
     }
