@@ -151,6 +151,8 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
       cacheControl?.includes("no-cache") ||
       cacheControl?.includes("no-store")
     ) {
+      res.setHeader("X-Cache", "BYPASS");
+      res.setHeader("X-Cache-Status", "BYPASS");
       return next();
     }
 
