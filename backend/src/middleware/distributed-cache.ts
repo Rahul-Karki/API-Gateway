@@ -46,6 +46,7 @@ const CACHE_WAIT_POLL_MS = Number(
   process.env.CACHE_WAIT_POLL_MS || 25
 );
 const CACHE_VERSION = "v2";
+const CLIENT_CACHE_CONTROL = "no-store";
 
 interface CacheEntry {
   data: unknown;
@@ -171,6 +172,7 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
     ) {
       res.setHeader("X-Cache", "BYPASS");
       res.setHeader("X-Cache-Status", "BYPASS");
+      res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
       appMetrics.cacheRequestsTotal.add(1, { cache: "redis", status: "BYPASS" });
       appMetrics.cacheMisses.add(1, { cache: "redis", status: "BYPASS" });
       appMetrics.cacheOperationDuration.record(Date.now() - startedAt, {
@@ -239,10 +241,7 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
           span.end();
           res.setHeader("X-Cache", "HIT");
           res.setHeader("X-Cache-Status", "HIT");
-          res.setHeader(
-            "Cache-Control",
-            `public, max-age=${ttl}`
-          );
+          res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
           res.json(entry.data);
           return;
         }
@@ -277,10 +276,7 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
           span.end();
           res.setHeader("X-Cache", "STALE");
           res.setHeader("X-Cache-Status", "STALE");
-          res.setHeader(
-            "Cache-Control",
-            `public, max-age=${ttl}, stale-while-revalidate=${stale}`
-          );
+          res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
           res.json(entry.data);
 
           // Async refresh (don't wait)
@@ -339,10 +335,7 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
               span.end();
               res.setHeader("X-Cache", "WAIT-HIT");
               res.setHeader("X-Cache-Status", "WAIT-HIT");
-              res.setHeader(
-                "Cache-Control",
-                `public, max-age=${ttl}`
-              );
+              res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
               res.json(warmedEntry.data);
               return;
             }
@@ -408,10 +401,7 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
         span.end();
         res.setHeader("X-Cache", "MISS");
         res.setHeader("X-Cache-Status", "MISS");
-        res.setHeader(
-          "Cache-Control",
-          `public, max-age=${ttl}, stale-while-revalidate=${stale}`
-        );
+        res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
 
         return originalJson.call(this, body);
       };
