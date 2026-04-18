@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react"
+import axios from "axios"
 import apiClient from "@/services/apiClient"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -9,6 +10,7 @@ type LogEntry = {
   method: string
   status: number
   statusText: string
+  browserCache: string
   cache: string
   edgeCache: string
   cachePolicy: string
@@ -37,11 +39,19 @@ const CACHE_COLORS: Record<string, string> = {
   HIT: "#22d3ee",
   MISS: "#f59e0b",
   "WAIT-HIT": "#60a5fa",
+  DYNAMIC: "#facc15",
   BYPASS: "#f87171",
   EXPIRED: "#fb923c",
   STALE: "#a78bfa",
   "CLIENT-CACHE": "#34d399",
   "-": "#4a5568",
+}
+
+type BrowserCacheEntry = {
+  expiresAtMs: number
+  status: number
+  data: any
+  cachePolicy: string
 }
 
 function normalizeCacheHeader(value: unknown): string[] {
@@ -100,6 +110,19 @@ function resolveSource(backendCache: string, edgeCache: string, cachePolicy: str
   if (backendCache === "BYPASS") return "BYPASS"
   if (cachePolicy.startsWith("public")) return "CACHEABLE"
   return "BACKEND"
+}
+
+function parseMaxAgeSeconds(cachePolicy: string): number {
+  const match = cachePolicy.match(/max-age=(\d+)/i)
+  if (!match) return 0
+  return Number(match[1]) || 0
+}
+
+function shouldUseBrowserCache(method: string, cachePolicy: string): boolean {
+  if (method !== "GET") return false
+  if (!cachePolicy || cachePolicy === "-") return false
+  if (cachePolicy.includes("no-store") || cachePolicy.includes("no-cache")) return false
+  return parseMaxAgeSeconds(cachePolicy) > 0
 }
 
 function buildUrl(baseUrl: string, method: string, id: string): string {
@@ -569,6 +592,11 @@ function LogRow({
           </span>
         </td>
         <td style={{ padding: "8px 14px" }}>
+          <span style={{ color: CACHE_COLORS[log.browserCache] || "#4a5568", fontWeight: 700, letterSpacing: "0.05em" }}>
+            {log.browserCache}
+          </span>
+        </td>
+        <td style={{ padding: "8px 14px" }}>
           <span style={{ color: CACHE_COLORS[log.cache] || "#4a5568", fontWeight: 700, letterSpacing: "0.05em" }}>
             {log.cache}
           </span>
@@ -608,7 +636,7 @@ function LogRow({
 
       {isExpanded && isClickable && (
         <tr>
-          <td colSpan={13} style={{ padding: 0, borderBottom: "1px solid #1e2d3d" }}>
+          <td colSpan={14} style={{ padding: 0, borderBottom: "1px solid #1e2d3d" }}>
             <ResponsePanel log={log} onProductSelect={onProductSelect} />
           </td>
         </tr>
@@ -659,8 +687,11 @@ export default function ApiTester() {
   const [expandedRowId, setExpandedRowId] = useState<number | null>(null)
 
   const productsCacheRef = useRef<Record<string, any>>({})
+  const browserCacheRef = useRef<Record<string, BrowserCacheEntry>>({})
   const nextSlotRef      = useRef(0)
   const nextIdRef        = useRef(1)
+  const runThroughVercelEdge =
+    typeof window !== "undefined" && window.location.hostname.includes("vercel.app")
 
   // ── Run test ────────────────────────────────────────────────────────────────
 
@@ -670,6 +701,7 @@ export default function ApiTester() {
     setProgress(0)
     setExpandedRowId(null)
     productsCacheRef.current = {}
+    browserCacheRef.current = {}
     nextSlotRef.current = 0
     nextIdRef.current = 1
 
@@ -688,14 +720,48 @@ export default function ApiTester() {
         const start = performance.now()
         const ts = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
 
+        const browserCacheKey = `${method}:${url}`
+        const browserEntry = browserCacheRef.current[browserCacheKey]
+        if (method === "GET" && browserEntry && Date.now() < browserEntry.expiresAtMs) {
+          setLogs(prev => [...prev, {
+            id: myId,
+            url,
+            method,
+            status: browserEntry.status,
+            statusText: "OK (browser cache)",
+            browserCache: "HIT",
+            cache: "-",
+            edgeCache: "-",
+            cachePolicy: browserEntry.cachePolicy,
+            backendDuration: "0",
+            source: "BROWSER-CACHE",
+            latency: performance.now() - start,
+            authorized: true,
+            rateLimited: false,
+            timestamp: ts,
+            responseData: browserEntry.data,
+          }])
+          setProgress(Math.min(100, Math.round((nextSlotRef.current / total) * 100)))
+          continue
+        }
+
         try {
-          const res = await apiClient({ url, method, data: parsedBody })
+          const res = runThroughVercelEdge
+            ? await axios({
+                url,
+                method,
+                data: parsedBody,
+                withCredentials: true,
+                timeout: 10000,
+              })
+            : await apiClient({ url, method, data: parsedBody })
           const latency = performance.now() - start
           const cacheStatus = resolveCacheStatus(res.headers)
           const edgeCache = resolveEdgeCacheStatus(res.headers)
           const cachePolicy = firstHeader(res.headers, "x-cache-policy")
           const backendDuration = firstHeader(res.headers, "x-backend-duration")
           const source = resolveSource(cacheStatus, edgeCache, cachePolicy)
+          const browserCache = "MISS"
 
           if (url.includes("/all") && res.data?.products) {
             res.data.products.forEach((p: any) => { productsCacheRef.current[p._id] = p })
@@ -707,6 +773,7 @@ export default function ApiTester() {
             if (cached) {
               setLogs(prev => [...prev, {
                 id: myId, url, method, status: 200, statusText: "OK (from cache)",
+                browserCache: "HIT",
                 cache: "CLIENT-CACHE", latency: performance.now() - start,
                 edgeCache: "-",
                 cachePolicy: "client-memory",
@@ -721,6 +788,7 @@ export default function ApiTester() {
 
           setLogs(prev => [...prev, {
             id: myId, url, method, status: res.status, statusText: "OK",
+            browserCache,
             edgeCache,
             cachePolicy,
             backendDuration,
@@ -728,6 +796,16 @@ export default function ApiTester() {
             cache: cacheStatus, latency, authorized: true, rateLimited: false,
             timestamp: ts, responseData: res.data,
           }])
+
+          if (shouldUseBrowserCache(method, cachePolicy)) {
+            const maxAgeSeconds = parseMaxAgeSeconds(cachePolicy)
+            browserCacheRef.current[browserCacheKey] = {
+              expiresAtMs: Date.now() + maxAgeSeconds * 1000,
+              status: res.status,
+              data: res.data,
+              cachePolicy,
+            }
+          }
         } catch (err: any) {
           const latency = performance.now() - start
           const status = err.response?.status || 0
@@ -744,6 +822,7 @@ export default function ApiTester() {
               status === 401 ? "Unauthorized" :
               status === 403 ? "Forbidden" :
               status === 0   ? "Network Error" : "Error",
+            browserCache: "MISS",
             cache: cacheStatus, latency,
             edgeCache,
             cachePolicy,
@@ -880,7 +959,7 @@ export default function ApiTester() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                 <thead>
                   <tr style={{ background: "#0a0f14", position: "sticky", top: 0, zIndex: 1 }}>
-                    {["#", "TIME", "METHOD", "ENDPOINT", "STATUS", "REDIS", "EDGE", "POLICY", "SOURCE", "B-END", "AUTH", "LATENCY", ""].map(h => (
+                    {["#", "TIME", "METHOD", "ENDPOINT", "STATUS", "BROWSER", "REDIS", "EDGE", "POLICY", "SOURCE", "B-END", "AUTH", "LATENCY", ""].map(h => (
                       <th key={h} style={{
                         padding: "9px 14px", textAlign: "left", color: "#4a5568",
                         fontSize: 9, letterSpacing: "0.12em", fontWeight: 500,
