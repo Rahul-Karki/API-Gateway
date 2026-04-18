@@ -2,11 +2,15 @@ import express from 'express';
 import { Router } from 'express';
 import { createProduct, getAllProducts, updateProduct , deleteProduct, getProductByID, updateSpecificField } from "../controller/productController";
 import { dynamicNoStorePolicy, semiDynamicEdgeCachePolicy } from '../../middleware/cache-policy';
+import { attachCacheVersionHeader, bumpCacheVersionOnWrite } from '../../middleware/cache-version';
 
 
 const router = express.Router();    
 
 //router.use(cookieMiddleware);
+
+router.use(attachCacheVersionHeader('products'));
+router.use(bumpCacheVersionOnWrite('products'));
 
 router.get('/all', semiDynamicEdgeCachePolicy, getAllProducts);
 router.get('/:productId', semiDynamicEdgeCachePolicy, getProductByID);

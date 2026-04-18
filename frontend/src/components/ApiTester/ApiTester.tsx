@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react"
 import axios from "axios"
-import apiClient from "@/services/apiClient"
+import apiClient, { getApiCacheVersion } from "@/services/apiClient"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -719,7 +719,7 @@ export default function ApiTester() {
         const start = performance.now()
         const ts = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
 
-        const browserCacheKey = `${method}:${url}`
+        const browserCacheKey = `${method}:${url}|cv:${getApiCacheVersion()}`
         const browserEntry = browserCacheRef.current[browserCacheKey]
         if (method === "GET" && browserEntry && Date.now() < browserEntry.expiresAtMs) {
           setLogs(prev => [...prev, {

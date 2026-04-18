@@ -4,8 +4,12 @@ import { getMe, googleLogin, login, signUp , forgotPassword , resendResetLink , 
 import { authMiddleware } from "../middlewares/authMiddleware";
 import { authRateLimiter } from "../../middleware/distributed-rate-limit";
 import { dynamicNoStorePolicy } from "../../middleware/cache-policy";
+import { attachCacheVersionHeader, bumpCacheVersionOnWrite } from "../../middleware/cache-version";
 
 const router = express.Router();
+
+router.use(attachCacheVersionHeader('global'));
+router.use(bumpCacheVersionOnWrite('global'));
 
 // Strict distributed rate limiting on authentication endpoints
 // Protects against brute force attacks using Redis Upstash

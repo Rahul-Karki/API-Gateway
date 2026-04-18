@@ -5,6 +5,18 @@ const defaultBaseURL = import.meta.env.PROD
   ? ""
   : "https://gateway-7dsr.onrender.com";
 
+let apiCacheVersion = "0";
+
+export function getApiCacheVersion(): string {
+  return apiCacheVersion;
+}
+
+function setApiCacheVersion(version: string): void {
+  if (version && version !== "-") {
+    apiCacheVersion = version;
+  }
+}
+
 const apiClient = axios.create({
   baseURL: configuredBaseURL || defaultBaseURL,
   withCredentials: true,
@@ -25,6 +37,7 @@ const processQueue = (error: any, token: string | null = null) => {
 apiClient.interceptors.request.use((config) => {
   const method = (config.method || "get").toLowerCase();
   const isWrite = method === "post" || method === "put" || method === "patch" || method === "delete";
+  const isProductsGet = method === "get" && String(config.url || "").includes("/api/products");
 
   if (isWrite && !config.headers?.["Idempotency-Key"]) {
     const key = typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -37,13 +50,26 @@ apiClient.interceptors.request.use((config) => {
     };
   }
 
+  if (isProductsGet) {
+    config.params = {
+      ...(config.params || {}),
+      _cv: apiCacheVersion,
+    };
+  }
+
   return config;
 });
 
 
 // ✅ Handle response
 apiClient.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    const responseVersion = res.headers?.["x-cache-version"];
+    if (responseVersion) {
+      setApiCacheVersion(String(responseVersion));
+    }
+    return res;
+  },
   async (error) => {
     const originalRequest: any = error.config;
 
