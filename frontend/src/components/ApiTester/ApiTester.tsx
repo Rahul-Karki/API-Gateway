@@ -117,11 +117,21 @@ function parseMaxAgeSeconds(cachePolicy: string): number {
   return Number(match[1]) || 0
 }
 
+function getBrowserCacheTtlSeconds(cachePolicy: string): number {
+  if (!cachePolicy || cachePolicy === "-") return 0
+  if (cachePolicy.includes("no-store") || cachePolicy.includes("no-cache")) return 0
+
+  const maxAge = parseMaxAgeSeconds(cachePolicy)
+  if (maxAge > 0) return maxAge
+
+  if (cachePolicy.toLowerCase().startsWith("public")) return 15
+
+  return 0
+}
+
 function shouldUseBrowserCache(method: string, cachePolicy: string): boolean {
   if (method !== "GET") return false
-  if (!cachePolicy || cachePolicy === "-") return false
-  if (cachePolicy.includes("no-store") || cachePolicy.includes("no-cache")) return false
-  return parseMaxAgeSeconds(cachePolicy) > 0
+  return getBrowserCacheTtlSeconds(cachePolicy) > 0
 }
 
 function buildUrl(baseUrl: string, method: string, id: string): string {
@@ -788,7 +798,7 @@ export default function ApiTester() {
           }])
 
           if (shouldUseBrowserCache(method, cachePolicy)) {
-            const maxAgeSeconds = parseMaxAgeSeconds(cachePolicy)
+            const maxAgeSeconds = getBrowserCacheTtlSeconds(cachePolicy)
             browserCacheRef.current[browserCacheKey] = {
               expiresAtMs: Date.now() + maxAgeSeconds * 1000,
               status: res.status,

@@ -12,6 +12,7 @@ export function semiDynamicEdgeCachePolicy(
 ): void {
   const policy = "public, max-age=0, s-maxage=300, stale-while-revalidate=3600";
   res.setHeader("Cache-Control", policy);
+  res.setHeader("X-Cache-Policy", policy);
   // Explicit CDN hint for providers that honor separate shared cache control.
   res.setHeader("CDN-Cache-Control", "public, s-maxage=300, stale-while-revalidate=3600");
   res.setHeader("Vary", "X-Cache-Version, Accept-Encoding");
@@ -27,6 +28,8 @@ export function dynamicNoStorePolicy(
   res: Response,
   next: NextFunction
 ): void {
-  res.setHeader("Cache-Control", "no-store, private");
+  const policy = "no-store, private";
+  res.setHeader("Cache-Control", policy);
+  res.setHeader("X-Cache-Policy", policy);
   next();
 }
