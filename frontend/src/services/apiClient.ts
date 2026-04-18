@@ -1,7 +1,12 @@
 import axios from "axios";
 
+const configuredBaseURL = (import.meta.env.VITE_API_BASE_URL || "").trim();
+const defaultBaseURL = import.meta.env.PROD
+  ? ""
+  : "https://gateway-7dsr.onrender.com";
+
 const apiClient = axios.create({
-  baseURL: "https://gateway-7dsr.onrender.com",
+  baseURL: configuredBaseURL || defaultBaseURL,
   withCredentials: true,
   timeout: 10000, // 10 second timeout
 });
@@ -16,6 +21,24 @@ const processQueue = (error: any, token: string | null = null) => {
   });
   failedQueue = [];
 };
+
+apiClient.interceptors.request.use((config) => {
+  const method = (config.method || "get").toLowerCase();
+  const isWrite = method === "post" || method === "put" || method === "patch" || method === "delete";
+
+  if (isWrite && !config.headers?.["Idempotency-Key"]) {
+    const key = typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    config.headers = {
+      ...config.headers,
+      "Idempotency-Key": key,
+    };
+  }
+
+  return config;
+});
 
 
 // ✅ Handle response

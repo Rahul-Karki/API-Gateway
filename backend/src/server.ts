@@ -11,8 +11,7 @@ import cookieParser from 'cookie-parser';
 import { httpInstrumentation } from './observability/middleware/httpMiddleware';
 import { errorHandler } from './observability/middleware/errorMiddlware';
 import { logger } from './observability/observability';
-import { generalRateLimiter, authRateLimiter } from './middleware/distributed-rate-limit';
-import { distributedCacheMiddleware } from './middleware/distributed-cache';
+import { createRateLimiter } from './middleware/distributed-rate-limit';
 import { checkRedisHealth, closeRedis } from './config/redis-upstash';
 
 const app = express();
@@ -26,13 +25,33 @@ app.use(httpInstrumentation);
 app.use(express.json());
 app.use(cookieParser());
 
-// Apply general rate limiter to all API routes
-// Exclude health checks and static assets
+// Category B (semi-dynamic): high-throughput rate limit
+const semiDynamicLimiter = createRateLimiter({
+  points: Number(process.env.RATE_LIMIT_SEMI_DYNAMIC_POINTS || 1000),
+  duration: Number(process.env.RATE_LIMIT_SEMI_DYNAMIC_DURATION || 60),
+  prefix: 'rl:semi-dynamic',
+});
+
+// Category C (dynamic): stricter rate limit
+const dynamicLimiter = createRateLimiter({
+  points: Number(process.env.RATE_LIMIT_DYNAMIC_POINTS || 100),
+  duration: Number(process.env.RATE_LIMIT_DYNAMIC_DURATION || 60),
+  prefix: 'rl:dynamic',
+});
+
+// Apply category-aware API rate limiting
 app.use((req, res, next) => {
   if (req.path.startsWith('/health') || req.path === '/') {
     return next();
   }
-  generalRateLimiter()(req, res, next);
+
+  // Category B: product catalog routes
+  if (req.path.startsWith('/api/products')) {
+    return semiDynamicLimiter(req, res, next);
+  }
+
+  // Category C: everything else
+  return dynamicLimiter(req, res, next);
 });
 
 const PORT = process.env.PORT || 5000;
@@ -69,11 +88,11 @@ app.get('/', (req, res) => {
 
 connectDB();
 
-// Auth routes with strict rate limiting (5 req/60s per IP)
-app.use('/api/auth', authRateLimiter(), authRouter);
+// Auth routes (dynamic, no-store + strict limiter in auth router)
+app.use('/api/auth', authRouter);
 
-// Product routes with distributed caching (60s TTL, 30s stale)
-app.use('/api/products', distributedCacheMiddleware({ ttl: 60, stale: 30 }), productRouter);
+// Product routes (semi-dynamic edge/browser strategy, no Redis response cache)
+app.use('/api/products', productRouter);
 
 // Other routes
 app.use('/api', refreshRouter);
