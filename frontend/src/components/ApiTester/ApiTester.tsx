@@ -701,7 +701,6 @@ export default function ApiTester() {
     setProgress(0)
     setExpandedRowId(null)
     productsCacheRef.current = {}
-    browserCacheRef.current = {}
     nextSlotRef.current = 0
     nextIdRef.current = 1
 
