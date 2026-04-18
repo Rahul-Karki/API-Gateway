@@ -51,6 +51,11 @@ apiClient.interceptors.request.use((config) => {
   }
 
   if (isProductsGet) {
+    config.headers = {
+      ...config.headers,
+      "X-Cache-Version": apiCacheVersion,
+    };
+
     config.params = {
       ...(config.params || {}),
       _cv: apiCacheVersion,

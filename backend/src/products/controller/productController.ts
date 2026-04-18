@@ -2,7 +2,6 @@ import { Request , Response } from "express";
 import { Product } from "../models/Products";
 import { logger, tracer, SpanStatusCode } from '../../observability/observability';
 import { traceDbQuery } from '../../observability/middleware/dbTrackerMiddleware';
-import { invalidateResourceCache } from '../../middleware/cache';
 
 const createProduct = async (req: Request, res: Response) => {
   const startTime = Date.now();
@@ -95,13 +94,6 @@ const createProduct = async (req: Request, res: Response) => {
       duration_ms: duration,
     }, `Product created successfully: ${name}`);
 
-    const invalidatedCount = await invalidateResourceCache('products');
-    logger.info({
-      type: 'products_cache_invalidated',
-      reason: 'create_product',
-      invalidatedCount,
-    }, 'Products cache invalidated after create');
-    
     return res.status(201).json({
       message: "Product created successfully",
       product: savedProduct,
@@ -332,13 +324,6 @@ const updateProduct = async (req: Request, res: Response) => {
       duration_ms: duration,
     }, `Product updated successfully: ${savedProduct.name}`);
 
-    const invalidatedCount = await invalidateResourceCache('products');
-    logger.info({
-      type: 'products_cache_invalidated',
-      reason: 'update_product',
-      invalidatedCount,
-    }, 'Products cache invalidated after update');
-    
     return res.status(200).json({
       message: "Product updated successfully",
       product: savedProduct,
@@ -462,13 +447,6 @@ const deleteProduct = async (req: Request, res: Response) => {
       duration_ms: duration,
     }, `Product deleted successfully: ${product.name}`);
 
-    const invalidatedCount = await invalidateResourceCache('products');
-    logger.info({
-      type: 'products_cache_invalidated',
-      reason: 'delete_product',
-      invalidatedCount,
-    }, 'Products cache invalidated after delete');
-    
     return res.status(200).json({
       message: "Product deleted successfully",
     });
@@ -735,13 +713,6 @@ const updateSpecificField = async (req: Request, res: Response) => {
       duration_ms: duration,
     }, `Field(s) updated successfully for product: ${savedProduct.name}`);
 
-    const invalidatedCount = await invalidateResourceCache('products');
-    logger.info({
-      type: 'products_cache_invalidated',
-      reason: 'update_specific_field',
-      invalidatedCount,
-    }, 'Products cache invalidated after partial update');
-    
     return res.status(200).json({
       message: "Field updated successfully",
       product: savedProduct,

@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback } from "react"
-import axios from "axios"
 import apiClient, { getApiCacheVersion } from "@/services/apiClient"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -745,15 +744,7 @@ export default function ApiTester() {
         }
 
         try {
-          const res = runThroughVercelEdge
-            ? await axios({
-                url,
-                method,
-                data: parsedBody,
-                withCredentials: true,
-                timeout: 10000,
-              })
-            : await apiClient({ url, method, data: parsedBody })
+          const res = await apiClient({ url, method, data: parsedBody })
           const latency = performance.now() - start
           const cacheStatus = resolveCacheStatus(res.headers)
           const edgeCache = resolveEdgeCacheStatus(res.headers)

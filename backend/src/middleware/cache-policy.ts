@@ -14,6 +14,7 @@ export function semiDynamicEdgeCachePolicy(
   res.setHeader("Cache-Control", policy);
   // Explicit CDN hint for providers that honor separate shared cache control.
   res.setHeader("CDN-Cache-Control", "public, s-maxage=300, stale-while-revalidate=3600");
+  res.setHeader("Vary", "X-Cache-Version, Accept-Encoding");
   next();
 }
 
