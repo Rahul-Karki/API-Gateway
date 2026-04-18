@@ -46,7 +46,13 @@ const CACHE_WAIT_POLL_MS = Number(
   process.env.CACHE_WAIT_POLL_MS || 25
 );
 const CACHE_VERSION = "v2";
-const CLIENT_CACHE_CONTROL = "no-store";
+const CLIENT_CACHE_MODE = (process.env.CACHE_CLIENT_MODE || "public").toLowerCase();
+const CACHE_CLIENT_MAX_AGE_SECONDS = Number(
+  process.env.CACHE_CLIENT_MAX_AGE_SECONDS || 30
+);
+const CACHE_CLIENT_STALE_SECONDS = Number(
+  process.env.CACHE_CLIENT_STALE_SECONDS || 60
+);
 
 interface CacheEntry {
   data: unknown;
@@ -143,6 +149,23 @@ function setTimingHeaders(res: Response, status: string, durationMs: number): vo
   res.setHeader("Server-Timing", `cache;desc="${status}";dur=${roundedDuration}`);
 }
 
+function setCachePolicyHeader(res: Response, cacheStatus: string): void {
+  const policy = resolveClientCacheControl(cacheStatus);
+  res.setHeader("X-Cache-Policy", policy);
+}
+
+function resolveClientCacheControl(cacheStatus: string): string {
+  if (CLIENT_CACHE_MODE === "no-store") {
+    return "no-store";
+  }
+
+  if (cacheStatus === "BYPASS" || cacheStatus === "ERROR") {
+    return "no-store";
+  }
+
+  return `public, max-age=${CACHE_CLIENT_MAX_AGE_SECONDS}, stale-while-revalidate=${CACHE_CLIENT_STALE_SECONDS}`;
+}
+
 /**
  * Distributed cache middleware factory
  */
@@ -181,7 +204,8 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
     ) {
       res.setHeader("X-Cache", "BYPASS");
       res.setHeader("X-Cache-Status", "BYPASS");
-      res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
+      res.setHeader("Cache-Control", resolveClientCacheControl("BYPASS"));
+      setCachePolicyHeader(res, "BYPASS");
       setTimingHeaders(res, "BYPASS", Date.now() - startedAt);
       appMetrics.cacheRequestsTotal.add(1, { cache: "redis", status: "BYPASS" });
       appMetrics.cacheMisses.add(1, { cache: "redis", status: "BYPASS" });
@@ -251,7 +275,8 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
           span.end();
           res.setHeader("X-Cache", "HIT");
           res.setHeader("X-Cache-Status", "HIT");
-          res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
+          res.setHeader("Cache-Control", resolveClientCacheControl("HIT"));
+          setCachePolicyHeader(res, "HIT");
           setTimingHeaders(res, "HIT", Date.now() - startedAt);
           res.json(entry.data);
           return;
@@ -287,7 +312,8 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
           span.end();
           res.setHeader("X-Cache", "STALE");
           res.setHeader("X-Cache-Status", "STALE");
-          res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
+          res.setHeader("Cache-Control", resolveClientCacheControl("STALE"));
+          setCachePolicyHeader(res, "STALE");
           setTimingHeaders(res, "STALE", Date.now() - startedAt);
           res.json(entry.data);
 
@@ -347,7 +373,8 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
               span.end();
               res.setHeader("X-Cache", "WAIT-HIT");
               res.setHeader("X-Cache-Status", "WAIT-HIT");
-              res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
+              res.setHeader("Cache-Control", resolveClientCacheControl("WAIT-HIT"));
+              setCachePolicyHeader(res, "WAIT-HIT");
               setTimingHeaders(res, "WAIT-HIT", Date.now() - startedAt);
               res.json(warmedEntry.data);
               return;
@@ -414,7 +441,8 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
         span.end();
         res.setHeader("X-Cache", "MISS");
         res.setHeader("X-Cache-Status", "MISS");
-        res.setHeader("Cache-Control", CLIENT_CACHE_CONTROL);
+        res.setHeader("Cache-Control", resolveClientCacheControl("MISS"));
+        setCachePolicyHeader(res, "MISS");
         setTimingHeaders(res, "MISS", Date.now() - startedAt);
 
         return originalJson.call(this, body);
@@ -445,6 +473,7 @@ export function distributedCacheMiddleware(options?: CacheOptions) {
       );
       span.setStatus({ code: SpanStatusCode.ERROR, message: "cache_middleware_error" });
       span.setAttribute("cache.status", "ERROR");
+      setCachePolicyHeader(res, "ERROR");
       setTimingHeaders(res, "ERROR", Date.now() - startedAt);
       span.end();
       // Clean up lock on error
