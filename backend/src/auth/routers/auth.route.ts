@@ -1,6 +1,6 @@
 import express from  "express";
 import { Router } from "express";
-import { getMe, googleLogin, login, signUp , forgotPassword , resendResetLink , resetPassword } from "../controller/authController";
+import { getMe, googleLogin, login, logout, signUp , forgotPassword , resendResetLink , resetPassword } from "../controller/authController";
 import { authMiddleware } from "../middlewares/authMiddleware";
 import { authRateLimiter } from "../../middleware/distributed-rate-limit";
 import { dynamicNoStorePolicy } from "../../middleware/cache-policy";
@@ -10,6 +10,7 @@ import {
 	forgotPasswordBodySchema,
 	googleLoginBodySchema,
 	loginBodySchema,
+	logoutBodySchema,
 	resendResetLinkBodySchema,
 	resetPasswordBodySchema,
 	signUpBodySchema,
@@ -34,5 +35,6 @@ router.post("/resend", dynamicNoStorePolicy, authLimiter, validateRequest({ body
 
 // Protected routes - only logged-in users
 router.get("/me", dynamicNoStorePolicy, authMiddleware, getMe);
+router.post("/logout", dynamicNoStorePolicy, validateRequest({ body: logoutBodySchema }), logout);
 
 export default router;

@@ -42,6 +42,7 @@ const apiClient = axios.create({
 
 let isRefreshing = false;
 let failedQueue: any[] = [];
+let refreshDisabled = false;
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
@@ -96,6 +97,17 @@ apiClient.interceptors.request.use((config) => {
 // ✅ Handle response
 apiClient.interceptors.response.use(
   (res) => {
+    const requestUrl = String(res.config?.url || "");
+    const restoresSession =
+      requestUrl.includes("/api/auth/login") ||
+      requestUrl.includes("/api/auth/signup") ||
+      requestUrl.includes("/api/auth/google-login") ||
+      requestUrl.includes("/api/refresh");
+
+    if (restoresSession) {
+      refreshDisabled = false;
+    }
+
     const responseVersion = res.headers?.["x-cache-version"];
     if (responseVersion) {
       setApiCacheVersion(String(responseVersion));
@@ -104,6 +116,10 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     const originalRequest: any = error.config;
+
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
 
     // Auth bootstrap should fail quietly when no session exists.
     // Redirecting here causes a reload loop because AuthProvider calls /me on every page load.
@@ -121,10 +137,18 @@ apiClient.interceptors.response.use(
     const isAuthRoute =
       originalRequest.url?.includes("/api/auth/login") ||
       originalRequest.url?.includes("/api/auth/signup") ||
-      originalRequest.url?.includes("/api/auth/forgot-password")
+      originalRequest.url?.includes("/api/auth/forgot-password") ||
+      originalRequest.url?.includes("/api/auth/reset-password") ||
+      originalRequest.url?.includes("/api/auth/resend") ||
+      originalRequest.url?.includes("/api/auth/google-login") ||
+      originalRequest.url?.includes("/api/auth/logout")
 
     if (isAuthRoute) {
       return Promise.reject(error)  // just pass error to the caller, no refresh attempt
+    }
+
+    if (refreshDisabled) {
+      return Promise.reject(error);
     }
 
     // ✅ FIX 2: Handle 401 properly
@@ -144,14 +168,18 @@ apiClient.interceptors.response.use(
       try {
         // ✅ FIX 3: Use apiClient (not axios)
         await apiClient.post("/api/refresh", {});
+        refreshDisabled = false;
 
         processQueue(null);
 
         return apiClient(originalRequest);
 
       } catch (err) {
+        refreshDisabled = true;
         processQueue(err, null);
-        window.location.href = "/login";
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
         return Promise.reject(err);
       } finally {
         isRefreshing = false;

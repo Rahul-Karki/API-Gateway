@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -33,8 +34,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setIsAuthenticated(true)
       } catch (error) {
         const status = axios.isAxiosError(error) ? error.response?.status : undefined
+        const currentPath = window.location.pathname
+        const isPublicAuthPage = currentPath === "/login" || currentPath === "/signup"
 
         if (status === 401 || status === 403) {
+          if (isPublicAuthPage) {
+            setUser(null)
+            setIsAuthenticated(false)
+            return
+          }
+
           try {
             await apiClient.post("/api/refresh", {})
 
@@ -61,16 +70,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     fetchUser()
   }, [])
 
+  const logout = useCallback(async () => {
+    try {
+      await apiClient.post("/api/auth/logout", {})
+    } finally {
+      setUser(null)
+      setIsAuthenticated(false)
+    }
+  }, [])
+
   // ✅ Only re-renders consumers when user, isAuthenticated, or loading actually changes
   const value = useMemo(
     () => ({
       user,
       isAuthenticated,
       loading,
+      logout,
       setUser,
       setIsAuthenticated,
     }),
-    [user, isAuthenticated, loading]
+    [user, isAuthenticated, loading, logout]
   )
 
   return (

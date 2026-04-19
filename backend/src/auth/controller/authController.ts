@@ -14,7 +14,7 @@ import { sendEmail } from "../utils/sendEmail";
 import { forgotPasswordTemplate } from "../utils/emailTemplate";
 import { logger , tracer , SpanStatusCode } from "../../observability/observability";
 import { traceDbQuery } from "../../observability/middleware/dbTrackerMiddleware";
-import { setAuthCookies } from "../utils/cookieOptions";
+import { clearAuthCookies, clearCsrfCookie, setAuthCookies } from "../utils/cookieOptions";
 
 const COOLDOWN_AFTER_RESET = 5 * 60 * 1000; // 5 min
 
@@ -1379,11 +1379,21 @@ const resendResetLink = async (req: Request, res: Response) => {
   }
 };
 
+const logout = async (req: Request, res: Response) => {
+  clearAuthCookies(res);
+  clearCsrfCookie(res);
+
+  return res.status(200).json({
+    message: "Logged out successfully",
+  });
+};
+
 export {
   signUp,
   login,
   googleLogin,
   getMe,
+  logout,
   forgotPassword,
   resetPassword,
   resendResetLink,

@@ -58,3 +58,5 @@ export const resendResetLinkBodySchema = z
   .strict();
 
 export const refreshBodySchema = z.object({}).strict();
+
+export const logoutBodySchema = z.object({}).strict();

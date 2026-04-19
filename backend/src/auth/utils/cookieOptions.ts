@@ -71,6 +71,15 @@ export function clearAuthCookies(res: Response): void {
   res.clearCookie('refreshToken', baseOptions);
 }
 
+export function clearCsrfCookie(res: Response): void {
+  const baseOptions = getBaseCookieOptions();
+
+  res.clearCookie('csrfToken', {
+    ...baseOptions,
+    httpOnly: false,
+  });
+}
+
 export function setCsrfCookie(res: Response, csrfToken: string): void {
   const baseOptions = getBaseCookieOptions();
 
