@@ -7,14 +7,53 @@ import productRouter from './products/router/product.route';
 import { connectDB } from './config/db';
 import refreshRouter from './auth/routers/refresh.route';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import helmet from 'helmet';
 
 import { httpInstrumentation } from './observability/middleware/httpMiddleware';
 import { errorHandler } from './observability/middleware/errorMiddlware';
 import { logger } from './observability/observability';
 import { createRateLimiter } from './middleware/distributed-rate-limit';
 import { checkRedisHealth, closeRedis } from './config/redis-upstash';
+import { csrfCookieMiddleware, csrfProtectionMiddleware } from './middleware/csrf';
 
 const app = express();
+
+const rawAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:5173,https://gateway-7dsr.onrender.com')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = new Set(rawAllowedOrigins);
+
+app.use(
+  helmet({
+    crossOriginOpenerPolicy: { policy: 'same-origin' },
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    referrerPolicy: { policy: 'no-referrer' },
+    hsts: process.env.NODE_ENV === 'production',
+  }),
+);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('Origin not allowed by CORS policy'));
+    },
+    credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'Idempotency-Key', 'X-Cache-Version'],
+    exposedHeaders: ['X-Cache-Version'],
+  }),
+);
 
 // Trust proxy for accurate IP detection (important for rate limiting)
 // Adjust based on your deployment: 1 for direct, 'cloudflare' for Cloudflare, etc.
@@ -24,6 +63,9 @@ app.use(httpInstrumentation);
 
 app.use(express.json());
 app.use(cookieParser());
+
+app.use('/api', csrfCookieMiddleware);
+app.use('/api', csrfProtectionMiddleware);
 
 // Category B (semi-dynamic): high-throughput rate limit
 const semiDynamicLimiter = createRateLimiter({

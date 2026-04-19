@@ -7,6 +7,23 @@ const defaultBaseURL = import.meta.env.PROD
 
 let apiCacheVersion = "0";
 
+function getCookieValue(name: string): string | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const value = document.cookie
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith(`${name}=`));
+
+  if (!value) {
+    return null;
+  }
+
+  return decodeURIComponent(value.substring(name.length + 1));
+}
+
 export function getApiCacheVersion(): string {
   return apiCacheVersion;
 }
@@ -48,6 +65,16 @@ apiClient.interceptors.request.use((config) => {
       ...config.headers,
       "Idempotency-Key": key,
     };
+  }
+
+  if (isWrite) {
+    const csrfToken = getCookieValue("csrfToken");
+    if (csrfToken) {
+      config.headers = {
+        ...config.headers,
+        "X-CSRF-Token": csrfToken,
+      };
+    }
   }
 
   if (isProductsGet) {
@@ -116,7 +143,7 @@ apiClient.interceptors.response.use(
 
       try {
         // ✅ FIX 3: Use apiClient (not axios)
-        const res = await apiClient.post("/api/refresh");
+        await apiClient.post("/api/refresh", {});
 
         processQueue(null);
 

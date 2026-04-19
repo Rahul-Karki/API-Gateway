@@ -14,6 +14,7 @@ import { sendEmail } from "../utils/sendEmail";
 import { forgotPasswordTemplate } from "../utils/emailTemplate";
 import { logger , tracer , SpanStatusCode } from "../../observability/observability";
 import { traceDbQuery } from "../../observability/middleware/dbTrackerMiddleware";
+import { setAuthCookies } from "../utils/cookieOptions";
 
 const COOLDOWN_AFTER_RESET = 5 * 60 * 1000; // 5 min
 
@@ -111,21 +112,7 @@ const signUp = async (req: Request, res: Response) => {
     });
 
 
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-    });
-
-    res.cookie(
-      "accessToken",
-      accessToken, // ← add this
-      {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-      },
-    );
+    setAuthCookies(res, accessToken, refreshToken);
 
     const duration = Date.now() - startTime;
 
@@ -282,21 +269,7 @@ const login = async (req: Request, res: Response) => {
     });
 
     // 6. Set cookie
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-    });
-
-    res.cookie(
-      "accessToken",
-      accessToken, // ← add this
-      {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-      },
-    );
+    setAuthCookies(res, accessToken, refreshToken);
 
     const duration = Date.now() - startTime;
     span.setAttributes({
@@ -478,17 +451,7 @@ const googleLogin = async (req: Request, res: Response) => {
     });
 
     // 6. Set cookies
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-    });
-
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-    });
+    setAuthCookies(res, accessToken, refreshToken);
 
     // 7. Success - add final span attributes
     const duration = Date.now() - startTime;

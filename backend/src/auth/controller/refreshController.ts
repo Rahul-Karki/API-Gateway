@@ -1,8 +1,9 @@
 
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { generateAccessToken } from "../utils/generateToken";
+import { generateAccessToken, generateRefreshToken } from "../utils/generateToken";
 import { logger, tracer, SpanStatusCode } from "../../observability/observability";
+import { setAuthCookies } from "../utils/cookieOptions";
 
 const refreshAccessToken = async (req: Request, res: Response) => {
   const startTime = Date.now();
@@ -99,9 +100,10 @@ const refreshAccessToken = async (req: Request, res: Response) => {
       });
     }
 
-    // Generate new access token
+    // Rotate both tokens on refresh to keep the browser session cookie-only.
     const tokenGenStart = Date.now();
     const newAccessToken = generateAccessToken(decoded.userId);
+    const newRefreshToken = generateRefreshToken(decoded.userId);
     const tokenGenDuration = Date.now() - tokenGenStart;
     
     span.setAttributes({
@@ -109,11 +111,7 @@ const refreshAccessToken = async (req: Request, res: Response) => {
       'access_token.generated': true
     });
 
-    res.cookie("accessToken", newAccessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-    });
+    setAuthCookies(res, newAccessToken, newRefreshToken);
 
     // Success - final response
     const duration = Date.now() - startTime;
@@ -126,7 +124,7 @@ const refreshAccessToken = async (req: Request, res: Response) => {
     }, 'New access token generated successfully');
 
     return res.status(200).json({
-      accessToken: newAccessToken,
+      message: "Access token refreshed",
     });
     
   } catch (error: any) {
