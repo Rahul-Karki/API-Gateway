@@ -52,6 +52,16 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+const isPublicRoute = (pathname: string) => {
+  return (
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/features" ||
+    pathname === "/reset-password"
+  );
+};
+
 apiClient.interceptors.request.use((config) => {
   const method = (config.method || "get").toLowerCase();
   const isWrite = method === "post" || method === "put" || method === "patch" || method === "delete";
@@ -177,7 +187,7 @@ apiClient.interceptors.response.use(
       } catch (err) {
         refreshDisabled = true;
         processQueue(err, null);
-        if (window.location.pathname !== "/login") {
+        if (!isPublicRoute(window.location.pathname) && window.location.pathname !== "/login") {
           window.location.href = "/login";
         }
         return Promise.reject(err);

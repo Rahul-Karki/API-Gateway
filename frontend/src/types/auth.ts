@@ -24,6 +24,7 @@ export type AuthContextType = {
   user: User | null
   isAuthenticated: boolean
   loading: boolean
+  sessionChecked: boolean
   logout: () => Promise<void>
   setUser: React.Dispatch<React.SetStateAction<User | null>>
   setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>

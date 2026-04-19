@@ -23,6 +23,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [sessionChecked, setSessionChecked] = useState(false)
+
+  const isPublicRoute = (pathname: string) => {
+    return (
+      pathname === "/" ||
+      pathname === "/login" ||
+      pathname === "/signup" ||
+      pathname === "/features" ||
+      pathname === "/reset-password"
+    )
+  }
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -35,10 +46,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       } catch (error) {
         const status = axios.isAxiosError(error) ? error.response?.status : undefined
         const currentPath = window.location.pathname
-        const isPublicAuthPage = currentPath === "/login" || currentPath === "/signup"
+        const publicRoute = isPublicRoute(currentPath)
 
         if (status === 401 || status === 403) {
-          if (isPublicAuthPage) {
+          if (publicRoute) {
             setUser(null)
             setIsAuthenticated(false)
             return
@@ -64,6 +75,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       } finally {
         setLoading(false)
+        setSessionChecked(true)
       }
     }
 
@@ -85,11 +97,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       user,
       isAuthenticated,
       loading,
+      sessionChecked,
       logout,
       setUser,
       setIsAuthenticated,
     }),
-    [user, isAuthenticated, loading, logout]
+    [user, isAuthenticated, loading, sessionChecked, logout]
   )
 
   return (
