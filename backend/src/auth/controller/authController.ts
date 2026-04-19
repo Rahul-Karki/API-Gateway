@@ -490,16 +490,26 @@ const googleLogin = async (req: Request, res: Response) => {
   } catch (error: any) {
     // Error handling with both span and logger
     const duration = Date.now() - startTime;
+    const errorMessage = error?.message || 'Google login failed';
+    const isConfigError = errorMessage.includes('GOOGLE_CLIENT_ID');
+    const isTokenError =
+      errorMessage.includes('Wrong number of segments') ||
+      errorMessage.includes('No pem found for') ||
+      errorMessage.includes('Invalid token signature') ||
+      errorMessage.includes('invalid_grant') ||
+      errorMessage.includes('audience') ||
+      errorMessage.includes('Token used too late') ||
+      errorMessage.includes('Token used too early');
     
     // Set span status to error
     span.setStatus({
       code: SpanStatusCode.ERROR,
-      message: error.message || 'Google login failed'
+      message: errorMessage
     });
     
     span.setAttributes({
       'error.type': error.name || 'UnknownError',
-      'error.message': error.message,
+      'error.message': errorMessage,
       'login.duration_ms': duration,
       'login.success': false
     });
@@ -507,12 +517,24 @@ const googleLogin = async (req: Request, res: Response) => {
     // Log the full error
     logger.error({
       type: 'google_login_error',
-      error: error.message,
+      error: errorMessage,
       stack: error.stack,
       email: req.body?.email, // May not exist yet
       duration_ms: duration,
     }, 'Google login failed with server error');
-    
+
+    if (isConfigError) {
+      return res.status(500).json({
+        message: "Google login is misconfigured on the server. Check GOOGLE_CLIENT_ID.",
+      });
+    }
+
+    if (isTokenError) {
+      return res.status(400).json({
+        message: "Google token verification failed. Please sign in again.",
+      });
+    }
+
     return res.status(500).json({ message: "Server error during Google login" });
   } finally {
     // Always end the span
