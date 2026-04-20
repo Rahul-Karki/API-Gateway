@@ -1,9 +1,10 @@
 
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { generateAccessToken, generateRefreshToken } from "../utils/generateToken";
 import { logger, tracer, SpanStatusCode } from "../../observability/observability";
-import { setAuthCookies } from "../utils/cookieOptions";
+import { setAuthCookies, setCsrfCookie } from "../utils/cookieOptions";
 
 const refreshAccessToken = async (req: Request, res: Response) => {
   const startTime = Date.now();
@@ -113,6 +114,10 @@ const refreshAccessToken = async (req: Request, res: Response) => {
 
     setAuthCookies(res, newAccessToken, newRefreshToken);
 
+    // Generate and set new CSRF token for the client to use on next request
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    setCsrfCookie(res, csrfToken);
+
     // Success - final response
     const duration = Date.now() - startTime;
     
@@ -125,6 +130,7 @@ const refreshAccessToken = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       message: "Access token refreshed",
+      csrfToken: csrfToken,
     });
     
   } catch (error: any) {

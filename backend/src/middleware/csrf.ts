@@ -12,6 +12,8 @@ const CSRF_EXEMPT_ROUTES = new Set([
   'POST:/auth/forgot-password',
   'POST:/auth/reset-password',
   'POST:/auth/resend',
+  'POST:/auth/logout',
+  'POST:/refresh',
 ]);
 
 function normalizeToken(token: unknown): string {

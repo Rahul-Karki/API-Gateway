@@ -36,39 +36,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const bootstrapSession = async () => {
       try {
+        // First, try to refresh the session to get new tokens
+        // This will fail silently if no valid refresh token exists (e.g., first visit)
+        try {
+          await apiClient.post("/api/refresh", {})
+        } catch (_refreshError) {
+          // Refresh failed or no session - continue to check if we have a session anyway
+          // The /me endpoint will catch 401 and not retry (by design)
+        }
+
+        // Now try to fetch current user with potentially refreshed tokens
         const res = await apiClient.get<{ user: User }>("/api/auth/me", {
           withCredentials: true,
         })
+
         setUser(res.data.user)
         setIsAuthenticated(true)
       } catch (error) {
+        // Failed to get user - no valid session
         const status = axios.isAxiosError(error) ? error.response?.status : undefined
-        const currentPath = window.location.pathname
-        const publicRoute = isPublicRoute(currentPath)
 
+        // For 401/403, this means refresh or auth failed
         if (status === 401 || status === 403) {
-          if (publicRoute) {
-            setUser(null)
-            setIsAuthenticated(false)
-            return
-          }
-
-          try {
-            await apiClient.post("/api/refresh", {})
-
-            const retryRes = await apiClient.get<{ user: User }>("/api/auth/me", {
-              withCredentials: true,
-            })
-
-            setUser(retryRes.data.user)
-            setIsAuthenticated(true)
-            return
-          } catch {
-            setUser(null)
-            setIsAuthenticated(false)
-          }
+          setUser(null)
+          setIsAuthenticated(false)
+        } else if (status === 0) {
+          // Network error - don't change state, might be a transient issue
+          setUser(null)
+          setIsAuthenticated(false)
         } else {
           setUser(null)
           setIsAuthenticated(false)
@@ -79,7 +76,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     }
 
-    fetchUser()
+    bootstrapSession()
   }, [])
 
   const logout = useCallback(async () => {

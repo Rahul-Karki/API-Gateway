@@ -119,9 +119,10 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 });
 
 
-// ✅ Handle response
+// ✅ Handle response and errors with retry logic for 401 and 403
 apiClient.interceptors.response.use(
   (res) => {
+    // Update cache version from response header
     const requestUrl = String(res.config?.url || "");
     const restoresSession =
       requestUrl.includes("/api/auth/login") ||
@@ -137,29 +138,37 @@ apiClient.interceptors.response.use(
     if (responseVersion) {
       setApiCacheVersion(String(responseVersion));
     }
+
+    // Update CSRF token from response if provided (from /refresh endpoint)
+    const responseCsrfToken = res.data?.csrfToken;
+    if (responseCsrfToken && typeof document !== "undefined") {
+      // Update the CSRF cookie by setting it via document.cookie
+      // Note: The server sets this via Set-Cookie header, but we also store it locally
+      document.cookie = `csrfToken=${encodeURIComponent(responseCsrfToken)}; path=/; SameSite=Lax`;
+    }
+
     return res;
   },
   async (error) => {
     const axiosError = error as AxiosError;
-    const originalRequest = axiosError.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
+    const originalRequest = axiosError.config as (InternalAxiosRequestConfig & { _retry?: boolean; _csrfRetry?: boolean }) | undefined;
 
     if (!originalRequest) {
       return Promise.reject(error);
     }
 
-    // Auth bootstrap should fail quietly when no session exists.
-    // Redirecting here causes a reload loop because AuthProvider calls /me on every page load.
+    // Don't retry on auth bootstrap - let it fail quietly
     if (originalRequest.url?.includes("/api/auth/me")) {
       return Promise.reject(error);
     }
 
-    // ✅ FIX 1: Correct refresh URL check
+    // If refresh itself fails, redirect to login
     if (originalRequest.url?.includes("/api/refresh")) {
       window.location.href = "/login";
       return Promise.reject(error);
     }
 
-    // ✅ ADD THIS: bail out on auth routes that are expected to return 401
+    // Don't retry on auth routes - let them fail with their original errors
     const isAuthRoute =
       originalRequest.url?.includes("/api/auth/login") ||
       originalRequest.url?.includes("/api/auth/signup") ||
@@ -167,48 +176,96 @@ apiClient.interceptors.response.use(
       originalRequest.url?.includes("/api/auth/reset-password") ||
       originalRequest.url?.includes("/api/auth/resend") ||
       originalRequest.url?.includes("/api/auth/google-login") ||
-      originalRequest.url?.includes("/api/auth/logout")
+      originalRequest.url?.includes("/api/auth/logout");
 
     if (isAuthRoute) {
-      return Promise.reject(error)  // just pass error to the caller, no refresh attempt
+      return Promise.reject(error);
     }
 
+    // If refresh is disabled globally (session lost), reject immediately
     if (refreshDisabled) {
       return Promise.reject(error);
     }
 
-    // ✅ FIX 2: Handle 401 properly
+    // ===== Handle 401 (Unauthorized - Token Expired) =====
     if (axiosError.response?.status === 401 && !originalRequest._retry) {
-
+      // If already refreshing, queue this request
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        }).then(() => {
-          return apiClient(originalRequest);
-        });
+        }).then(() => apiClient(originalRequest)).catch((err) => Promise.reject(err));
       }
 
+      // Mark as retry to prevent infinite loops
       originalRequest._retry = true;
       isRefreshing = true;
 
       try {
-        // ✅ FIX 3: Use apiClient (not axios)
-        await apiClient.post("/api/refresh", {});
+        // Call refresh endpoint to get new access token and CSRF token
+        const refreshResponse = await apiClient.post("/api/refresh", {});
+        
+        // Reset refresh state on success
         refreshDisabled = false;
-
         processQueue(null);
 
+        // Retry original request with new tokens
         return apiClient(originalRequest);
-
-      } catch (err) {
+      } catch (refreshErr) {
+        // Refresh failed - session is invalid
         refreshDisabled = true;
-        processQueue(err);
+        processQueue(refreshErr);
+
+        // Redirect to login unless already on a public route
         if (!isPublicRoute(window.location.pathname) && window.location.pathname !== "/login") {
           window.location.href = "/login";
         }
-        return Promise.reject(err);
+
+        return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;
+      }
+    }
+
+    // ===== Handle 403 (CSRF Token Invalid) =====
+    if (axiosError.response?.status === 403 && !originalRequest._csrfRetry) {
+      // Check if this is a CSRF error by looking at response
+      const responseData = axiosError.response?.data as { message?: string };
+      const isCsrfError = responseData?.message?.includes("CSRF");
+
+      if (isCsrfError) {
+        // Mark as CSRF retry to prevent infinite loops
+        originalRequest._csrfRetry = true;
+
+        // If already refreshing for CSRF, queue this request
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          }).then(() => apiClient(originalRequest)).catch((err) => Promise.reject(err));
+        }
+
+        isRefreshing = true;
+
+        try {
+          // Call refresh endpoint to get new CSRF token
+          await apiClient.post("/api/refresh", {});
+          refreshDisabled = false;
+          processQueue(null);
+
+          // Retry original request with new CSRF token
+          return apiClient(originalRequest);
+        } catch (refreshErr) {
+          // Refresh failed
+          refreshDisabled = true;
+          processQueue(refreshErr);
+
+          if (!isPublicRoute(window.location.pathname) && window.location.pathname !== "/login") {
+            window.location.href = "/login";
+          }
+
+          return Promise.reject(refreshErr);
+        } finally {
+          isRefreshing = false;
+        }
       }
     }
 
