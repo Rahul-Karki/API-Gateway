@@ -19,12 +19,17 @@ import { csrfCookieMiddleware, csrfProtectionMiddleware } from './middleware/csr
 
 const app = express();
 
-const rawAllowedOrigins = ('https://gateway-7dsr.onrender.com')
+const rawAllowedOrigins = (
+  process.env.CORS_ALLOWED_ORIGINS ||
+  'http://localhost:5173,http://127.0.0.1:5173,https://gateway-7dsr.onrender.com'
+)
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
 const allowedOrigins = new Set(rawAllowedOrigins);
+
+logger.info({ allowedOrigins: rawAllowedOrigins }, 'Configured CORS allowed origins');
 
 const isLoopbackOrigin = (origin: string) => {
   return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(origin);
