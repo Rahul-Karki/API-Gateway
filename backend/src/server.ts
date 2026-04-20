@@ -19,7 +19,7 @@ import { csrfCookieMiddleware, csrfProtectionMiddleware } from './middleware/csr
 
 const app = express();
 
-const rawAllowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173,https://gateway-7dsr.onrender.com')
+const rawAllowedOrigins = ('https://gateway-7dsr.onrender.com')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
