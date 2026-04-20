@@ -16,6 +16,7 @@ import { logger } from './observability/observability';
 import { createRateLimiter } from './middleware/distributed-rate-limit';
 import { checkRedisHealth, closeRedis } from './config/redis-upstash';
 import { csrfCookieMiddleware, csrfProtectionMiddleware } from './middleware/csrf';
+import { gatewayOnlyMiddleware } from './middleware/gatewayOnly';
 
 const app = express();
 
@@ -85,6 +86,8 @@ app.use(
 // Trust proxy for accurate IP detection (important for rate limiting)
 // Adjust based on your deployment: 1 for direct, 'cloudflare' for Cloudflare, etc.
 app.set('trust proxy', process.env.TRUST_PROXY || 1);
+
+app.use(gatewayOnlyMiddleware);
 
 app.use(httpInstrumentation);
 

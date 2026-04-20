@@ -10,15 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Ping backend health endpoint
-        run: |
-          curl --fail --silent --show-error --max-time 20 \
-            "${BACKEND_HEALTH_URL}" \
-            -o /dev/null
-          echo "Backend health ping succeeded"
-        env:
-          BACKEND_HEALTH_URL: https://backend-ccf7.onrender.com/health
-
       - name: Ping gateway health endpoint
         run: |
           curl --fail --silent --show-error --max-time 20 \

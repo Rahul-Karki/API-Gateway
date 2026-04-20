@@ -196,6 +196,7 @@ Nginx acts as edge control plane, not only as a reverse proxy.
 - `/api/auth/`: tighter request burst/limits for auth abuse resistance
 - `/api/products/`: broader limits for data access while still controlled
 - `/api/`: fallback route with consistent CORS and forwarding behavior
+- The gateway injects `X-Gateway-Secret` on every proxied request, and the backend rejects any request that does not include it.
 
 ## 6. Frontend Deep Dive
 
