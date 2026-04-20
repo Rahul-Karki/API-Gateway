@@ -19,13 +19,21 @@ import { csrfCookieMiddleware, csrfProtectionMiddleware } from './middleware/csr
 
 const app = express();
 
-const rawAllowedOrigins = (
-  process.env.CORS_ALLOWED_ORIGINS ||
-  'http://localhost:5173,http://127.0.0.1:5173,https://gateway-7dsr.onrender.com'
-)
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const defaultAllowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://api-gateway-snowy.vercel.app',
+];
+
+const rawAllowedOrigins = Array.from(
+  new Set([
+    ...defaultAllowedOrigins,
+    ...(process.env.CORS_ALLOWED_ORIGINS || '')
+      .split(',')
+      .map((origin: string) => origin.trim())
+      .filter(Boolean),
+  ]),
+);
 
 const allowedOrigins = new Set(rawAllowedOrigins);
 
