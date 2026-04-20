@@ -1,6 +1,12 @@
-import axios from "axios";
+import axios, {
+  AxiosError,
+  AxiosHeaders,
+  type InternalAxiosRequestConfig,
+} from "axios";
 
-const configuredBaseURL = (import.meta.env.VITE_API_BASE_URL || "").trim();
+const configuredBaseURL = (
+  import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_GATEWAY_URL || ""
+).trim();
 const defaultBaseURL = import.meta.env.PROD
   ? ""
   : "https://gateway-7dsr.onrender.com";
@@ -34,6 +40,14 @@ function setApiCacheVersion(version: string): void {
   }
 }
 
+function setRequestHeader(
+  config: InternalAxiosRequestConfig,
+  name: string,
+  value: string,
+): void {
+  (config.headers as AxiosHeaders).set(name, value);
+}
+
 const apiClient = axios.create({
   baseURL: configuredBaseURL || defaultBaseURL,
   withCredentials: true,
@@ -41,13 +55,21 @@ const apiClient = axios.create({
 });
 
 let isRefreshing = false;
-let failedQueue: any[] = [];
+type QueueItem = {
+  resolve: (value?: unknown) => void;
+  reject: (reason?: unknown) => void;
+};
+
+let failedQueue: QueueItem[] = [];
 let refreshDisabled = false;
 
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) prom.reject(error);
-    else prom.resolve(token);
+const processQueue = (error: unknown) => {
+  failedQueue.forEach((promise) => {
+    if (error) {
+      promise.reject(error);
+    } else {
+      promise.resolve();
+    }
   });
   failedQueue = [];
 };
@@ -62,37 +84,30 @@ const isPublicRoute = (pathname: string) => {
   );
 };
 
-apiClient.interceptors.request.use((config) => {
+apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const method = (config.method || "get").toLowerCase();
   const isWrite = method === "post" || method === "put" || method === "patch" || method === "delete";
   const isProductsGet = method === "get" && String(config.url || "").includes("/api/products");
 
-  if (isWrite && !config.headers?.["Idempotency-Key"]) {
+  const headers = AxiosHeaders.from(config.headers);
+
+  if (isWrite && !headers.has("Idempotency-Key")) {
     const key = typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-    config.headers = {
-      ...config.headers,
-      "Idempotency-Key": key,
-    };
+    setRequestHeader(config, "Idempotency-Key", key);
   }
 
   if (isWrite) {
     const csrfToken = getCookieValue("csrfToken");
     if (csrfToken) {
-      config.headers = {
-        ...config.headers,
-        "X-CSRF-Token": csrfToken,
-      };
+      setRequestHeader(config, "X-CSRF-Token", csrfToken);
     }
   }
 
   if (isProductsGet) {
-    config.headers = {
-      ...config.headers,
-      "X-Cache-Version": apiCacheVersion,
-    };
+    setRequestHeader(config, "X-Cache-Version", apiCacheVersion);
 
     config.params = {
       ...(config.params || {}),
@@ -125,7 +140,8 @@ apiClient.interceptors.response.use(
     return res;
   },
   async (error) => {
-    const originalRequest: any = error.config;
+    const axiosError = error as AxiosError;
+    const originalRequest = axiosError.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
 
     if (!originalRequest) {
       return Promise.reject(error);
@@ -162,12 +178,12 @@ apiClient.interceptors.response.use(
     }
 
     // ✅ FIX 2: Handle 401 properly
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (axiosError.response?.status === 401 && !originalRequest._retry) {
 
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        }).then((token: any) => {
+        }).then(() => {
           return apiClient(originalRequest);
         });
       }
@@ -186,7 +202,7 @@ apiClient.interceptors.response.use(
 
       } catch (err) {
         refreshDisabled = true;
-        processQueue(err, null);
+        processQueue(err);
         if (!isPublicRoute(window.location.pathname) && window.location.pathname !== "/login") {
           window.location.href = "/login";
         }
