@@ -19,12 +19,16 @@ import { csrfCookieMiddleware, csrfProtectionMiddleware } from './middleware/csr
 
 const app = express();
 
-const rawAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:5173,https://gateway-7dsr.onrender.com')
+const rawAllowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173,https://gateway-7dsr.onrender.com')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
 const allowedOrigins = new Set(rawAllowedOrigins);
+
+const isLoopbackOrigin = (origin: string) => {
+  return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(origin);
+};
 
 app.use(
   helmet({
@@ -46,7 +50,17 @@ app.use(
         return callback(null, true);
       }
 
-      return callback(new Error('Origin not allowed by CORS policy'));
+      if (isLoopbackOrigin(origin)) {
+        return callback(null, true);
+      }
+
+      logger.warn({
+        event: 'cors_rejected_origin',
+        origin,
+        allowedOrigins: rawAllowedOrigins,
+      }, 'Origin not allowed by CORS policy');
+
+      return callback(new Error(`Origin not allowed by CORS policy: ${origin}`));
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
