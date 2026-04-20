@@ -687,7 +687,7 @@ export default function ApiTester() {
   const [url, setUrl]               = useState("/api/products/all")
   const [method, setMethod]         = useState("GET")
   const [body, setBody]             = useState("")
-  const [total, setTotal]           = useState(2)
+  const [total, setTotal]           = useState(1)
   const [concurrency, setConcurrency] = useState(1)
   const [logs, setLogs]             = useState<LogEntry[]>([])
   const [running, setRunning]       = useState(false)

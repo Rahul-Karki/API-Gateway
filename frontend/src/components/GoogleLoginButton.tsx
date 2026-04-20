@@ -46,16 +46,16 @@ const GoogleAuthButton = ({ className }: GoogleAuthButtonProps) => {
               setUser(userRes.data.user)
               setIsAuthenticated(true)
 
-              navigate("/home")
+              navigate("/api-tester")
             } catch (err: any) {
               alert(err.response?.data?.message || "Google login failed")
             }
           }}
           onError={() => console.log("Login Failed")}
-          theme="filled_black"
+          theme="outline"
           size="large"
-          shape="pill"
-          text="continue_with"
+          shape="rectangular"
+          text="signin_with"
           width={btnWidth}
         />
       </div>
