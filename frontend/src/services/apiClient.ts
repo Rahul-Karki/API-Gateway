@@ -74,14 +74,8 @@ const processQueue = (error: unknown) => {
   failedQueue = [];
 };
 
-const isPublicRoute = (pathname: string) => {
-  return (
-    pathname === "/" ||
-    pathname === "/login" ||
-    pathname === "/signup" ||
-    pathname === "/features" ||
-    pathname === "/reset-password"
-  );
+const shouldRedirectToLogin = (pathname: string): boolean => {
+  return pathname === "/api-tester" || pathname === "/home";
 };
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -162,9 +156,11 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // If refresh itself fails, redirect to login
+    // If refresh itself fails, redirect only when user is on the protected api-tester page.
     if (originalRequest.url?.includes("/api/refresh")) {
-      window.location.href = "/login";
+      if (shouldRedirectToLogin(window.location.pathname)) {
+        window.location.href = "/login";
+      }
       return Promise.reject(error);
     }
 
@@ -215,8 +211,7 @@ apiClient.interceptors.response.use(
         refreshDisabled = true;
         processQueue(refreshErr);
 
-        // Redirect to login unless already on a public route
-        if (!isPublicRoute(window.location.pathname) && window.location.pathname !== "/login") {
+        if (shouldRedirectToLogin(window.location.pathname)) {
           window.location.href = "/login";
         }
 
@@ -258,7 +253,7 @@ apiClient.interceptors.response.use(
           refreshDisabled = true;
           processQueue(refreshErr);
 
-          if (!isPublicRoute(window.location.pathname) && window.location.pathname !== "/login") {
+          if (shouldRedirectToLogin(window.location.pathname)) {
             window.location.href = "/login";
           }
 

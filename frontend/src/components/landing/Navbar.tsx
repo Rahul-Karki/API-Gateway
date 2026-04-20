@@ -15,7 +15,7 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     await logout();
-    navigate("/login");
+    navigate("/");
   };
 
   return (
@@ -150,7 +150,7 @@ export default function Navbar() {
 
           {sessionChecked && isAuthenticated && (
             <div className="nav-actions">
-              <Link to="/home" className="btn-ghost">Dashboard</Link>
+              <Link to="/api-tester" className="btn-ghost">Dashboard</Link>
               <button onClick={handleLogout} className="btn-primary-nav" type="button">Logout</button>
             </div>
           )}

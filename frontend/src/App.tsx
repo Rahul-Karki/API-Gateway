@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Home from "./pages/Home";
@@ -34,13 +34,14 @@ function App() {
           <Route path="*" element={<NotFound />} />
           <Route path="/signup" element={<Signup />} />
           <Route
-            path="/home"
+            path="/api-tester"
             element={
               <ProtectedRoute>
                   <Home />
               </ProtectedRoute>
             }
           />
+          <Route path="/home" element={<Navigate to="/api-tester" replace />} />
           <Route path="/reset-password" element={<ForgotPassword />} />
           <Route path="/features" element={<FeaturesPage/>} />
         </Routes>
