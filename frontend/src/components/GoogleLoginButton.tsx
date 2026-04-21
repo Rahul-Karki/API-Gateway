@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react"
 import { GoogleLogin } from "@react-oauth/google"
 import { useNavigate } from "react-router-dom"
 
-import { setAccessToken } from "@/utils/storage"
 import { useAuth } from "@/context/AuthContext"
 import apiClient from "@/services/apiClient"
 
@@ -12,7 +11,7 @@ type GoogleAuthButtonProps = {
 
 const GoogleAuthButton = ({ className }: GoogleAuthButtonProps) => {
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { setUser, setIsAuthenticated } = useAuth()
   const hostRef = useRef<HTMLDivElement>(null)
   const [btnWidth, setBtnWidth] = useState<number>(320)
 
@@ -37,27 +36,26 @@ const GoogleAuthButton = ({ className }: GoogleAuthButtonProps) => {
         <GoogleLogin
           onSuccess={async (credentialResponse) => {
             try {
-              const res = await apiClient.post(
+              await apiClient.post(
                 "/api/auth/google-login",
                 { token: credentialResponse.credential },
                 { withCredentials: true }
               )
 
-              setAccessToken(res.data.accessToken)
-
               const userRes = await apiClient.get("/api/auth/me")
               setUser(userRes.data.user)
+              setIsAuthenticated(true)
 
-              navigate("/home")
+              navigate("/api-tester")
             } catch (err: any) {
               alert(err.response?.data?.message || "Google login failed")
             }
           }}
           onError={() => console.log("Login Failed")}
-          theme="filled_black"
+          theme="outline"
           size="large"
-          shape="pill"
-          text="continue_with"
+          shape="rectangular"
+          text="signin_with"
           width={btnWidth}
         />
       </div>

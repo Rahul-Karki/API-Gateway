@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react"
-import apiClient from "@/services/apiClient"
+import apiClient, { getApiCacheVersion } from "@/services/apiClient"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -9,7 +9,12 @@ type LogEntry = {
   method: string
   status: number
   statusText: string
+  browserCache: string
   cache: string
+  edgeCache: string
+  cachePolicy: string
+  backendDuration: string
+  source: string
   latency: number
   authorized: boolean
   rateLimited: boolean
@@ -32,11 +37,101 @@ const METHOD_COLORS: Record<string, string> = {
 const CACHE_COLORS: Record<string, string> = {
   HIT: "#22d3ee",
   MISS: "#f59e0b",
+  "WAIT-HIT": "#60a5fa",
+  DYNAMIC: "#facc15",
   BYPASS: "#f87171",
   EXPIRED: "#fb923c",
   STALE: "#a78bfa",
   "CLIENT-CACHE": "#34d399",
   "-": "#4a5568",
+}
+
+type BrowserCacheEntry = {
+  expiresAtMs: number
+  status: number
+  data: any
+  cachePolicy: string
+}
+
+function normalizeCacheHeader(value: unknown): string[] {
+  return String(value ?? "")
+    .split(",")
+    .map((part) => part.trim().toUpperCase())
+    .filter(Boolean)
+}
+
+function resolveCacheStatus(headers: Record<string, any>): string {
+  const cacheStatusValues = normalizeCacheHeader(headers["x-cache-status"])
+  const cacheValues = normalizeCacheHeader(headers["x-cache"])
+
+  const ordered = [...cacheStatusValues, ...cacheValues]
+
+  if (ordered.includes("HIT")) return "HIT"
+  if (ordered.includes("WAIT-HIT")) return "WAIT-HIT"
+  if (ordered.includes("MISS")) return "MISS"
+  if (ordered.includes("BYPASS")) return "BYPASS"
+  if (ordered.includes("EXPIRED")) return "EXPIRED"
+  if (ordered.includes("STALE")) return "STALE"
+
+  // No cache header means "unknown/not-exposed", not necessarily MISS.
+  return ordered[0] || "-"
+}
+
+function firstHeader(headers: Record<string, any>, key: string): string {
+  const value = headers[key]
+  if (Array.isArray(value)) return String(value[0] ?? "-")
+  return String(value ?? "-")
+}
+
+function resolveEdgeCacheStatus(headers: Record<string, any>): string {
+  const vercel = normalizeCacheHeader(headers["x-vercel-cache"])
+  const cloudflare = normalizeCacheHeader(headers["cf-cache-status"])
+  const generic = normalizeCacheHeader(headers["x-edge-cache"])
+
+  const ordered = [...vercel, ...cloudflare, ...generic]
+
+  if (ordered.includes("HIT")) return "HIT"
+  if (ordered.includes("MISS")) return "MISS"
+  if (ordered.includes("DYNAMIC")) return "DYNAMIC"
+  if (ordered.includes("BYPASS")) return "BYPASS"
+  if (ordered.includes("STALE")) return "STALE"
+
+  return ordered[0] || "-"
+}
+
+function resolveSource(backendCache: string, edgeCache: string, cachePolicy: string): string {
+  if (backendCache === "CLIENT-CACHE") return "BROWSER-MEM"
+  if (edgeCache === "HIT") return "EDGE-CDN"
+  if (backendCache === "HIT" || backendCache === "WAIT-HIT" || backendCache === "STALE") {
+    return "REDIS"
+  }
+  if (backendCache === "MISS") return "BACKEND-DB"
+  if (backendCache === "BYPASS") return "BYPASS"
+  if (cachePolicy.startsWith("public")) return "CACHEABLE"
+  return "BACKEND"
+}
+
+function parseMaxAgeSeconds(cachePolicy: string): number {
+  const match = cachePolicy.match(/max-age=(\d+)/i)
+  if (!match) return 0
+  return Number(match[1]) || 0
+}
+
+function getBrowserCacheTtlSeconds(cachePolicy: string): number {
+  if (!cachePolicy || cachePolicy === "-") return 0
+  if (cachePolicy.includes("no-store") || cachePolicy.includes("no-cache")) return 0
+
+  const maxAge = parseMaxAgeSeconds(cachePolicy)
+  if (maxAge > 0) return maxAge
+
+  if (cachePolicy.toLowerCase().startsWith("public")) return 15
+
+  return 0
+}
+
+function shouldUseBrowserCache(method: string, cachePolicy: string): boolean {
+  if (method !== "GET") return false
+  return getBrowserCacheTtlSeconds(cachePolicy) > 0
 }
 
 function buildUrl(baseUrl: string, method: string, id: string): string {
@@ -241,7 +336,7 @@ function ProgressBar({ logs, total, progress }: { logs: LogEntry[]; total: numbe
 function StatsStrip({ stats }: { stats: ReturnType<typeof computeStats> }) {
   return (
     <div style={{
-      display: "grid", gridTemplateColumns: "repeat(6, 1fr)",
+      display: "grid", gridTemplateColumns: "repeat(7, 1fr)",
       borderBottom: "1px solid #1e2d3d", background: "#0a0f14", flexShrink: 0,
     }}>
       {[
@@ -250,6 +345,7 @@ function StatsStrip({ stats }: { stats: ReturnType<typeof computeStats> }) {
         { label: "RATE LIMITED",value: stats.rateLimited,color: "#f87171" },
         { label: "UNAUTHORIZED",value: stats.unauthorized,color:"#fb923c" },
         { label: "CACHE HITS",  value: stats.cacheHit,   color: "#a78bfa" },
+        { label: "CACHE MISSES",value: stats.cacheMiss,  color: "#f59e0b" },
         { label: "AVG LATENCY", value: `${stats.avgLatency}ms`, color: "#34d399" },
       ].map(s => (
         <div key={s.label} style={{ padding: "12px 14px", borderRight: "1px solid #1e2d3d" }}>
@@ -505,8 +601,31 @@ function LogRow({
           </span>
         </td>
         <td style={{ padding: "8px 14px" }}>
+          <span style={{ color: CACHE_COLORS[log.browserCache] || "#4a5568", fontWeight: 700, letterSpacing: "0.05em" }}>
+            {log.browserCache}
+          </span>
+        </td>
+        <td style={{ padding: "8px 14px" }}>
           <span style={{ color: CACHE_COLORS[log.cache] || "#4a5568", fontWeight: 700, letterSpacing: "0.05em" }}>
             {log.cache}
+          </span>
+        </td>
+        <td style={{ padding: "8px 14px" }}>
+          <span style={{ color: CACHE_COLORS[log.edgeCache] || "#4a5568", fontWeight: 700, letterSpacing: "0.05em" }}>
+            {log.edgeCache}
+          </span>
+        </td>
+        <td style={{ padding: "8px 14px", color: "#a78bfa", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {log.cachePolicy}
+        </td>
+        <td style={{ padding: "8px 14px" }}>
+          <span style={{ color: "#22d3ee", fontWeight: 700 }}>
+            {log.source}
+          </span>
+        </td>
+        <td style={{ padding: "8px 14px" }}>
+          <span style={{ color: "#34d399", fontWeight: 700 }}>
+            {log.backendDuration}ms
           </span>
         </td>
         <td style={{ padding: "8px 14px" }}>
@@ -526,7 +645,7 @@ function LogRow({
 
       {isExpanded && isClickable && (
         <tr>
-          <td colSpan={9} style={{ padding: 0, borderBottom: "1px solid #1e2d3d" }}>
+          <td colSpan={14} style={{ padding: 0, borderBottom: "1px solid #1e2d3d" }}>
             <ResponsePanel log={log} onProductSelect={onProductSelect} />
           </td>
         </tr>
@@ -544,6 +663,7 @@ function computeStats(logs: LogEntry[]) {
     rateLimited: logs.filter(l => l.rateLimited).length,
     unauthorized: logs.filter(l => !l.authorized && !l.rateLimited).length,
     cacheHit: logs.filter(l => l.cache === "HIT").length,
+    cacheMiss: logs.filter(l => l.cache === "MISS").length,
     avgLatency: logs.length
       ? (logs.reduce((a, b) => a + b.latency, 0) / logs.length).toFixed(1)
       : "—",
@@ -567,7 +687,7 @@ export default function ApiTester() {
   const [url, setUrl]               = useState("/api/products/all")
   const [method, setMethod]         = useState("GET")
   const [body, setBody]             = useState("")
-  const [total, setTotal]           = useState(1)          // ← starts at 1
+  const [total, setTotal]           = useState(1)
   const [concurrency, setConcurrency] = useState(1)
   const [logs, setLogs]             = useState<LogEntry[]>([])
   const [running, setRunning]       = useState(false)
@@ -576,8 +696,11 @@ export default function ApiTester() {
   const [expandedRowId, setExpandedRowId] = useState<number | null>(null)
 
   const productsCacheRef = useRef<Record<string, any>>({})
+  const browserCacheRef = useRef<Record<string, BrowserCacheEntry>>({})
   const nextSlotRef      = useRef(0)
   const nextIdRef        = useRef(1)
+  const runThroughVercelEdge =
+    typeof window !== "undefined" && window.location.hostname.includes("vercel.app")
 
   // ── Run test ────────────────────────────────────────────────────────────────
 
@@ -605,11 +728,40 @@ export default function ApiTester() {
         const start = performance.now()
         const ts = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
 
+        const browserCacheKey = `${method}:${url}|cv:${getApiCacheVersion()}`
+        const browserEntry = browserCacheRef.current[browserCacheKey]
+        if (method === "GET" && browserEntry && Date.now() < browserEntry.expiresAtMs) {
+          setLogs(prev => [...prev, {
+            id: myId,
+            url,
+            method,
+            status: browserEntry.status,
+            statusText: "OK (browser cache)",
+            browserCache: "HIT",
+            cache: "-",
+            edgeCache: "-",
+            cachePolicy: browserEntry.cachePolicy,
+            backendDuration: "0",
+            source: "BROWSER-CACHE",
+            latency: performance.now() - start,
+            authorized: true,
+            rateLimited: false,
+            timestamp: ts,
+            responseData: browserEntry.data,
+          }])
+          setProgress(Math.min(100, Math.round((nextSlotRef.current / total) * 100)))
+          continue
+        }
+
         try {
           const res = await apiClient({ url, method, data: parsedBody })
           const latency = performance.now() - start
-          const rawCache = res.headers["x-cache-status"] || res.headers["x-cache"] || ""
-          const cacheStatus = rawCache.toString().toUpperCase().trim() || "MISS"
+          const cacheStatus = resolveCacheStatus(res.headers)
+          const edgeCache = resolveEdgeCacheStatus(res.headers)
+          const cachePolicy = firstHeader(res.headers, "x-cache-policy")
+          const backendDuration = firstHeader(res.headers, "x-backend-duration")
+          const source = resolveSource(cacheStatus, edgeCache, cachePolicy)
+          const browserCache = "MISS"
 
           if (url.includes("/all") && res.data?.products) {
             res.data.products.forEach((p: any) => { productsCacheRef.current[p._id] = p })
@@ -621,7 +773,12 @@ export default function ApiTester() {
             if (cached) {
               setLogs(prev => [...prev, {
                 id: myId, url, method, status: 200, statusText: "OK (from cache)",
+                browserCache: "HIT",
                 cache: "CLIENT-CACHE", latency: performance.now() - start,
+                edgeCache: "-",
+                cachePolicy: "client-memory",
+                backendDuration: "0",
+                source: "BROWSER-MEM",
                 authorized: true, rateLimited: false, timestamp: ts, responseData: cached,
               }])
               setProgress(Math.min(100, Math.round((nextSlotRef.current / total) * 100)))
@@ -631,12 +788,33 @@ export default function ApiTester() {
 
           setLogs(prev => [...prev, {
             id: myId, url, method, status: res.status, statusText: "OK",
+            browserCache,
+            edgeCache,
+            cachePolicy,
+            backendDuration,
+            source,
             cache: cacheStatus, latency, authorized: true, rateLimited: false,
             timestamp: ts, responseData: res.data,
           }])
+
+          if (shouldUseBrowserCache(method, cachePolicy)) {
+            const maxAgeSeconds = getBrowserCacheTtlSeconds(cachePolicy)
+            browserCacheRef.current[browserCacheKey] = {
+              expiresAtMs: Date.now() + maxAgeSeconds * 1000,
+              status: res.status,
+              data: res.data,
+              cachePolicy,
+            }
+          }
         } catch (err: any) {
           const latency = performance.now() - start
           const status = err.response?.status || 0
+          const headers = err.response?.headers || {}
+          const cacheStatus = resolveCacheStatus(headers)
+          const edgeCache = resolveEdgeCacheStatus(headers)
+          const cachePolicy = firstHeader(headers, "x-cache-policy")
+          const backendDuration = firstHeader(headers, "x-backend-duration")
+          const source = resolveSource(cacheStatus, edgeCache, cachePolicy)
           setLogs(prev => [...prev, {
             id: myId, url, method, status,
             statusText:
@@ -644,7 +822,12 @@ export default function ApiTester() {
               status === 401 ? "Unauthorized" :
               status === 403 ? "Forbidden" :
               status === 0   ? "Network Error" : "Error",
-            cache: "-", latency,
+            browserCache: "MISS",
+            cache: cacheStatus, latency,
+            edgeCache,
+            cachePolicy,
+            backendDuration,
+            source,
             authorized: status !== 401 && status !== 403,
             rateLimited: status === 429,
             timestamp: ts,
@@ -776,7 +959,7 @@ export default function ApiTester() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                 <thead>
                   <tr style={{ background: "#0a0f14", position: "sticky", top: 0, zIndex: 1 }}>
-                    {["#", "TIME", "METHOD", "ENDPOINT", "STATUS", "CACHE", "AUTH", "LATENCY", ""].map(h => (
+                    {["#", "TIME", "METHOD", "ENDPOINT", "STATUS", "BROWSER", "REDIS", "EDGE", "POLICY", "SOURCE", "B-END", "AUTH", "LATENCY", ""].map(h => (
                       <th key={h} style={{
                         padding: "9px 14px", textAlign: "left", color: "#4a5568",
                         fontSize: 9, letterSpacing: "0.12em", fontWeight: 500,

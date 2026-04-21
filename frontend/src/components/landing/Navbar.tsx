@@ -1,14 +1,22 @@
 import { useState, useEffect } from "react";
-import { NavLink, Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
+  const { isAuthenticated, loading, sessionChecked, logout } = useAuth();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
 
   return (
     <>
@@ -133,10 +141,19 @@ export default function Navbar() {
             <span className="nav-logo-text">Prox<span>Gate</span></span>
           </Link>
 
-          <div className="nav-actions">
-            <Link to="/login" className="btn-ghost">Log in</Link>
-            <Link to="/signup" className="btn-primary-nav">Get started →</Link>
-          </div>
+          {sessionChecked && !isAuthenticated && (
+            <div className="nav-actions">
+              <Link to="/login" className="btn-ghost">Log in</Link>
+              <Link to="/signup" className="btn-primary-nav">Get started →</Link>
+            </div>
+          )}
+
+          {sessionChecked && isAuthenticated && (
+            <div className="nav-actions">
+              <Link to="/api-tester" className="btn-ghost">Dashboard</Link>
+              <button onClick={handleLogout} className="btn-primary-nav" type="button">Logout</button>
+            </div>
+          )}
         </div>
       </nav>
     </>

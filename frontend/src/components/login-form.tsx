@@ -1,10 +1,8 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import axios from "axios"
-import { Sparkles } from "lucide-react"
+import { Sparkles, Eye, EyeOff } from "lucide-react"
 
 import apiClient from "@/services/apiClient"
-import { setAccessToken } from "@/utils/storage"
 import { useAuth } from "@/context/AuthContext"
 import GoogleAuthButton from "./GoogleLoginButton"
 import { Link } from "react-router-dom"
@@ -16,7 +14,7 @@ type FormData = {
 
 export default function LoginForm() {
   const navigate = useNavigate()
-  const { setUser } = useAuth()
+  const { setUser, setIsAuthenticated } = useAuth()
 
   const [formData, setFormData] = useState<FormData>({
     email: "",
@@ -26,6 +24,8 @@ export default function LoginForm() {
   const [message, setMessage] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
   const [timer, setTimer] = useState<number>(0)
+  const [showPassword, setShowPassword] = useState<boolean>(false)
+  
 
   // =========================
   // INPUT CHANGE
@@ -42,22 +42,21 @@ export default function LoginForm() {
   // =========================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true);
 
     if (!formData.email || !formData.password) {
       setMessage("Please enter email and password")
       return
     }
 
+    setLoading(true);
+    setMessage("");
+
     try {
-      setLoading(true)
-
-      const res = await apiClient.post("/api/auth/login", formData)
-
-      setAccessToken(res.data.accessToken)
+      await apiClient.post("/api/auth/login", formData)
 
       const userRes = await apiClient.get("/api/auth/me")
       setUser(userRes.data.user)
+      setIsAuthenticated(true)
 
       setMessage("Login successful")
       navigate("/home")
@@ -73,17 +72,23 @@ export default function LoginForm() {
   // =========================
   const startTimer = () => {
     setTimer(60)
+  }
 
-    const interval = setInterval(() => {
+  useEffect(() => {
+    if (timer === 0) return
+
+    const id = setInterval(() => {
       setTimer((prev) => {
         if (prev <= 1) {
-          clearInterval(interval)
+          clearInterval(id)
           return 0
         }
         return prev - 1
       })
     }, 1000)
-  }
+
+    return () => clearInterval(id)
+  }, [timer])
 
   // =========================
   // FORGOT PASSWORD
@@ -93,6 +98,7 @@ export default function LoginForm() {
       setMessage("Please enter your email first")
       return
     }
+    setMessage("");
 
     try {
       setLoading(true)
@@ -100,7 +106,7 @@ export default function LoginForm() {
       await apiClient.post("/api/auth/forgot-password", {
         email: formData.email,
       })
-
+      console.log('Forgot password request successful',formData.email);
       setMessage("Check your email for reset link")
       startTimer()
     } catch (err: any) {
@@ -136,7 +142,6 @@ export default function LoginForm() {
             <input
               name="email"
               type="email"
-              placeholder="you@example.com"
               value={formData.email}
               onChange={handleChange}
             />
@@ -155,12 +160,33 @@ export default function LoginForm() {
               </button>
             </div>
 
-            <input
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-            />
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={handleChange}
+                style={{ width: "100%", paddingRight: "40px" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#4a5568",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0",
+                }}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {/* MESSAGE */}

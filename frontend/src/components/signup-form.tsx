@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 
 import apiClient from "@/services/apiClient";
-import { setAccessToken } from "@/utils/storage";
 import { useAuth } from "@/context/AuthContext";
 import GoogleAuthButton from "./GoogleLoginButton.tsx";
-import { useEffect } from "react";
+import { isStrongPassword } from "@/utils/regex";
+
 import {} from "react-router-dom";
 
 type FormData = {
@@ -17,7 +18,7 @@ type FormData = {
 
 export default function SignupForm() {
   const navigate = useNavigate();
-  const { setUser , user } = useAuth();
+  const { setUser, setIsAuthenticated } = useAuth();
 
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -28,19 +29,17 @@ export default function SignupForm() {
 
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
-  const [signupSuccess, setSignupSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
 
-  useEffect(() => {
-    if (signupSuccess && user) {
-      navigate("/home");
-    }
-  }, [user, signupSuccess]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
+    
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,19 +55,27 @@ export default function SignupForm() {
       return;
     }
 
+
+    if (!isStrongPassword(formData.password)) {
+      setMessage("Password must contain uppercase, lowercase, number, and special character");
+      return;
+    }
+
+    
     try {
       setLoading(true);
 
-      const res = await apiClient.post("/api/auth/signup", {
+      await apiClient.post("/api/auth/signup", {
         name: formData.name,
         email: formData.email,
         password: formData.password,
       });
 
-      setAccessToken(res.data.accessToken);
       const userRes = await apiClient.get("/api/auth/me");
       setUser(userRes.data.user);
-      setSignupSuccess(true); // triggers the useEffect above
+      setIsAuthenticated(true);
+      navigate("/home");
+     
     } catch (err: any) {
       setMessage(err.response?.data?.message || "Signup failed");
     } finally {
@@ -110,25 +117,67 @@ export default function SignupForm() {
           {/* PASSWORD */}
           <div className="field">
             <label>Password</label>
-            <input
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={handleChange}
+                required
+                style={{ width: "100%", paddingRight: "40px" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#4a5568",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0",
+                }}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {/* CONFIRM PASSWORD */}
           <div className="field">
             <label>Confirm Password</label>
-            <input
-              name="confirmPassword"
-              type="password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-            />
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <input
+                name="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"}
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                style={{ width: "100%", paddingRight: "40px" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#4a5568",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0",
+                }}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {/* MESSAGE */}
