@@ -15,13 +15,20 @@ const GoogleAuthButton = ({ className }: GoogleAuthButtonProps) => {
 
   return (
     <div
-      className={className || ""}
+      className={`google-auth-hitbox ${className || ""}`}
       style={{
         width: "100%",
         display: "flex",
         justifyContent: "center",
+        alignItems: "center",
+        maxWidth: 320,
+        margin: "0 auto",
         borderRadius: 12,
         padding: "2px 0",
+        position: "relative",
+        zIndex: 50,
+        pointerEvents: "auto",
+        touchAction: "manipulation",
       }}
     >
       <GoogleLogin
@@ -29,7 +36,7 @@ const GoogleAuthButton = ({ className }: GoogleAuthButtonProps) => {
         text="signin_with"
         size="large"
         shape="rectangular"
-        width={320}
+        width="100%"
         logo_alignment="center"
         theme="filled_black"
         onSuccess={async (credentialResponse) => {

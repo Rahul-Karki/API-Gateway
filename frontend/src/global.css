@@ -58,7 +58,7 @@ body {
   border: 1px solid rgba(255,255,255,0.07);
   border-radius: 20px;
   padding: 28px;
-  overflow: hidden;
+  overflow: visible;
   backdrop-filter: blur(10px);
 }
 
@@ -196,6 +196,22 @@ body {
   text-align: center;
   font-size: 11px;
   opacity: 0.5;
+}
+
+.google-auth-hitbox {
+  isolation: isolate;
+  pointer-events: auto;
+}
+
+.google-auth-hitbox > div {
+  width: 100% !important;
+  pointer-events: auto !important;
+}
+
+.google-auth-hitbox iframe {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 60;
 }
 
 /* GOOGLE BUTTON */
