@@ -25,7 +25,7 @@ router.use(bumpCacheVersionOnWrite('global'));
 // Protects against brute force attacks using Redis Upstash
 const authLimiter = authRateLimiter();
 const googleAuthLimiter = authRateLimiter({
-	points: Number(process.env.RATE_LIMIT_GOOGLE_AUTH_POINTS || 20),
+	points: Number(process.env.RATE_LIMIT_GOOGLE_AUTH_POINTS || 100),
 	duration: Number(process.env.RATE_LIMIT_GOOGLE_AUTH_DURATION || 60),
 	prefix: "rl:auth:google",
 });
