@@ -24,10 +24,15 @@ router.use(bumpCacheVersionOnWrite('global'));
 // Strict distributed rate limiting on authentication endpoints
 // Protects against brute force attacks using Redis Upstash
 const authLimiter = authRateLimiter();
+const googleAuthLimiter = authRateLimiter({
+	points: Number(process.env.RATE_LIMIT_GOOGLE_AUTH_POINTS || 20),
+	duration: Number(process.env.RATE_LIMIT_GOOGLE_AUTH_DURATION || 60),
+	prefix: "rl:auth:google",
+});
 
 router.post("/signup", dynamicNoStorePolicy, authLimiter, validateRequest({ body: signUpBodySchema }), signUp);
 router.post('/login', dynamicNoStorePolicy, authLimiter, validateRequest({ body: loginBodySchema }), login);
-router.post("/google-login", dynamicNoStorePolicy, authLimiter, validateRequest({ body: googleLoginBodySchema }), googleLogin);
+router.post("/google-login", dynamicNoStorePolicy, googleAuthLimiter, validateRequest({ body: googleLoginBodySchema }), googleLogin);
 
 router.post("/forgot-password", dynamicNoStorePolicy, authLimiter, validateRequest({ body: forgotPasswordBodySchema }), forgotPassword);
 router.post("/reset-password", dynamicNoStorePolicy, authLimiter, validateRequest({ body: resetPasswordBodySchema }), resetPassword);
