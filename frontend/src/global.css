@@ -221,6 +221,7 @@ body {
   );
   opacity: 0.45;
   z-index: -1;
+  pointer-events: none;
 }
 
 .google-wrapper:hover {
@@ -230,6 +231,8 @@ body {
 
 .google-frame {
   width: 100%;
+  position: relative;
+  z-index: 2;
   padding: 7px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.06);
@@ -240,10 +243,19 @@ body {
 
 .google-frame > div {
   width: 100% !important;
+  pointer-events: auto !important;
 }
 
 .google-frame iframe {
   border-radius: 10px !important;
+  pointer-events: auto !important;
+}
+
+@media (hover: none) {
+  .google-wrapper:hover {
+    transform: none;
+    box-shadow: none;
+  }
 }
 
 /* LINKS */

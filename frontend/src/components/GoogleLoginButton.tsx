@@ -21,7 +21,7 @@ const GoogleAuthButton = ({ className }: GoogleAuthButtonProps) => {
 
     const measure = () => {
       const w = el.getBoundingClientRect().width
-      if (w > 0) setBtnWidth(Math.max(240, Math.floor(w)))
+      if (w > 0) setBtnWidth(Math.max(120, Math.floor(w)))
     }
 
     measure()
@@ -36,6 +36,11 @@ const GoogleAuthButton = ({ className }: GoogleAuthButtonProps) => {
         <GoogleLogin
           onSuccess={async (credentialResponse) => {
             try {
+              if (!credentialResponse.credential) {
+                alert("Google login failed")
+                return
+              }
+
               await apiClient.post(
                 "/api/auth/google-login",
                 { token: credentialResponse.credential },
