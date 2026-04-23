@@ -202,16 +202,16 @@ export default function LoginForm() {
             <span>or continue with</span>
           </div>
 
-          {/* Google */}
-          <GoogleAuthButton />
-         <p className="signup-text">
-  Already have an account?{" "}
-  <Link to="/signup" className="signup-link">
-    Sign up
-  </Link>
-</p>
-         
-   </form>
+        </form>
+
+        {/* Google */}
+        <GoogleAuthButton />
+        <p className="signup-text">
+          Already have an account?{" "}
+          <Link to="/signup" className="signup-link">
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   )
