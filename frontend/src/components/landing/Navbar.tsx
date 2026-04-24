@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const navigate = useNavigate();
-  const { isAuthenticated, loading, sessionChecked, logout } = useAuth();
+  const { isAuthenticated, sessionChecked, logout } = useAuth();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -140,6 +140,14 @@ export default function Navbar() {
             <div className="nav-logo-icon">GW</div>
             <span className="nav-logo-text">Prox<span>Gate</span></span>
           </Link>
+
+          {/* Reserve space while session bootstrap runs to avoid flicker/shift */}
+          {!sessionChecked && (
+            <div className="nav-actions" aria-hidden="true" style={{ visibility: "hidden" }}>
+              <span className="btn-ghost">Log in</span>
+              <span className="btn-primary-nav">Get started →</span>
+            </div>
+          )}
 
           {sessionChecked && !isAuthenticated && (
             <div className="nav-actions">
