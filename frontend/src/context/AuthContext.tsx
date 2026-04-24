@@ -14,6 +14,10 @@ import apiClient from "@/services/apiClient"
 // ✅ createContext with undefined (safe pattern)
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// React 18 StrictMode mounts, unmounts, and re-mounts components in dev.
+// Keep the auth bootstrap single-flight so the initial refresh/me requests do not double-fire.
+let hasBootstrappedSession = false
+
 // ✅ Provider props
 type AuthProviderProps = {
   children: ReactNode
@@ -36,6 +40,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }
 
   useEffect(() => {
+    if (hasBootstrappedSession) {
+      return
+    }
+
+    hasBootstrappedSession = true
+
     const bootstrapSession = async () => {
       try {
         // First, try to refresh the session to get new tokens

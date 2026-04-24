@@ -2,19 +2,42 @@ name: Keep Warm Backend and Gateway
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
   ping-services:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
+    strategy:
+      max-parallel: 1  # Sequential execution to avoid rate limiting issues
+      fail-fast: false  # Don't fail if one ping fails
     steps:
+      - name: Ping backend health endpoint
+        run: |
+          echo "Pinging backend health endpoint..."
+          curl --fail --silent --show-error --max-time 15 \
+            --retry 2 --retry-delay 3 \
+            -H "User-Agent: GitHub-KeepWarm-Bot" \
+            "${BACKEND_HEALTH_URL}" \
+            -o /dev/null
+          echo "✓ Backend health ping succeeded"
+        env:
+          BACKEND_HEALTH_URL: https://backend-ccf7.onrender.com/health
+        continue-on-error: true
+
+      - name: Wait before gateway ping
+        run: sleep 2
+
       - name: Ping gateway health endpoint
         run: |
-          curl --fail --silent --show-error --max-time 20 \
+          echo "Pinging gateway health endpoint..."
+          curl --fail --silent --show-error --max-time 15 \
+            --retry 2 --retry-delay 3 \
+            -H "User-Agent: GitHub-KeepWarm-Bot" \
             "${GATEWAY_HEALTH_URL}" \
             -o /dev/null
-          echo "Gateway health ping succeeded"
+          echo "✓ Gateway health ping succeeded"
         env:
           GATEWAY_HEALTH_URL: https://gateway-7dsr.onrender.com/health
+        continue-on-error: true

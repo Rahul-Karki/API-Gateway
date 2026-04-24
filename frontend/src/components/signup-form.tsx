@@ -4,7 +4,7 @@ import { Eye, EyeOff } from "lucide-react";
 
 import apiClient from "@/services/apiClient";
 import { useAuth } from "@/context/AuthContext";
-import GoogleAuthButton from "./GoogleLoginButton.tsx";
+import GoogleAuthButton from "./GoogleLoginButton";
 import { isStrongPassword } from "@/utils/regex";
 
 import {} from "react-router-dom";

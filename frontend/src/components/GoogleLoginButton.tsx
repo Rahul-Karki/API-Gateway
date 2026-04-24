@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { memo } from "react"
 import { GoogleLogin } from "@react-oauth/google"
 import { useNavigate } from "react-router-dom"
 
@@ -12,55 +12,61 @@ type GoogleAuthButtonProps = {
 const GoogleAuthButton = ({ className }: GoogleAuthButtonProps) => {
   const navigate = useNavigate()
   const { setUser, setIsAuthenticated } = useAuth()
-  const hostRef = useRef<HTMLDivElement>(null)
-  const [btnWidth, setBtnWidth] = useState<number>(320)
-
-  useEffect(() => {
-    const el = hostRef.current
-    if (!el) return
-
-    const measure = () => {
-      const w = el.getBoundingClientRect().width
-      if (w > 0) setBtnWidth(Math.max(240, Math.floor(w)))
-    }
-
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   return (
-    <div ref={hostRef} className={`google-wrapper ${className || ""}`}>
-      <div className="google-frame">
-        <GoogleLogin
-          onSuccess={async (credentialResponse) => {
-            try {
-              await apiClient.post(
-                "/api/auth/google-login",
-                { token: credentialResponse.credential },
-                { withCredentials: true }
-              )
-
-              const userRes = await apiClient.get("/api/auth/me")
-              setUser(userRes.data.user)
-              setIsAuthenticated(true)
-
-              navigate("/api-tester")
-            } catch (err: any) {
-              alert(err.response?.data?.message || "Google login failed")
+    <div
+      className={`google-auth-hitbox ${className || ""}`}
+      style={{
+        width: "100%",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        maxWidth: 320,
+        margin: "0 auto",
+        borderRadius: 12,
+        padding: "2px 0",
+        position: "relative",
+        zIndex: 50,
+        pointerEvents: "auto",
+        touchAction: "manipulation",
+      }}
+    >
+      <GoogleLogin
+        type="standard"
+        text="signin_with"
+        size="large"
+        shape="rectangular"
+        width="100%"
+        logo_alignment="center"
+        theme="filled_black"
+        onSuccess={async (credentialResponse) => {
+          try {
+            if (!credentialResponse.credential) {
+              alert("Google login failed")
+              return
             }
-          }}
-          onError={() => console.log("Login Failed")}
-          theme="outline"
-          size="large"
-          shape="rectangular"
-          text="signin_with"
-          width={btnWidth}
-        />
-      </div>
+
+            await apiClient.post(
+              "/api/auth/google-login",
+              { token: credentialResponse.credential },
+              { withCredentials: true }
+            )
+
+            const userRes = await apiClient.get("/api/auth/me")
+            setUser(userRes.data.user)
+            setIsAuthenticated(true)
+
+            navigate("/api-tester")
+          } catch (err: any) {
+            alert(err.response?.data?.message || "Google login failed")
+          }
+        }}
+        onError={() => {
+          console.log("Login Failed")
+        }}
+      />
     </div>
   )
 }
 
-export default GoogleAuthButton
+export default memo(GoogleAuthButton)
