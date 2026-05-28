@@ -51,7 +51,7 @@ function setRequestHeader(
 const apiClient = axios.create({
   baseURL: configuredBaseURL || defaultBaseURL,
   withCredentials: true,
-  timeout: 10000, // 10 second timeout
+  timeout: 30000, // 30 second timeout (increased for cold starts)
 });
 
 let isRefreshing = false;
@@ -131,14 +131,6 @@ apiClient.interceptors.response.use(
     const responseVersion = res.headers?.["x-cache-version"];
     if (responseVersion) {
       setApiCacheVersion(String(responseVersion));
-    }
-
-    // Update CSRF token from response if provided (from /refresh endpoint)
-    const responseCsrfToken = res.data?.csrfToken;
-    if (responseCsrfToken && typeof document !== "undefined") {
-      // Update the CSRF cookie by setting it via document.cookie
-      // Note: The server sets this via Set-Cookie header, but we also store it locally
-      document.cookie = `csrfToken=${encodeURIComponent(responseCsrfToken)}; path=/; SameSite=Lax`;
     }
 
     return res;

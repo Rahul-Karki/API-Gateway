@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import { validateEnv } from './config/env';
 import express from 'express';
 import authRouter from './auth/routers/auth.route';
 import productRouter from './products/router/product.route';
@@ -17,6 +18,8 @@ import { createRateLimiter } from './middleware/distributed-rate-limit';
 import { checkRedisHealth, closeRedis } from './config/redis-upstash';
 import { csrfCookieMiddleware, csrfProtectionMiddleware } from './middleware/csrf';
 import { gatewayOnlyMiddleware } from './middleware/gatewayOnly';
+
+validateEnv();
 
 const app = express();
 

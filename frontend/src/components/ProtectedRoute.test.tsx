@@ -28,12 +28,12 @@ function renderWithRoutes() {
 }
 
 describe('ProtectedRoute', () => {
-  it('renders nothing while loading', () => {
+  it('shows loading spinner while checking auth', () => {
     (useAuth as any).mockReturnValue({ isAuthenticated: false, loading: true });
 
-    const { container } = renderWithRoutes();
+    renderWithRoutes();
 
-    expect(container).toBeEmptyDOMElement();
+    expect(screen.getByText('Verifying session...')).toBeInTheDocument();
   });
 
   it('redirects to login when unauthenticated', () => {

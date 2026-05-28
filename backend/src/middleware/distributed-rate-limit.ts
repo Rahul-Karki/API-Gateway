@@ -30,7 +30,7 @@ interface ClientIdentifier {
  */
 function getClientIdentifier(req: Request): ClientIdentifier {
   // Priority: User ID > IP Address
-  const userId = (req as any).userId;
+  const userId = (req as { user?: { _id?: string } }).user?._id;
   if (userId) {
     return { type: "user", value: `user:${userId}` };
   }

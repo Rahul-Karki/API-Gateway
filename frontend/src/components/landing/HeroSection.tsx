@@ -17,13 +17,16 @@ export default function HeroSection() {
   useEffect(() => {
     if (!termRef.current) return;
     const lines = termRef.current.querySelectorAll<HTMLElement>(".term-line");
+    const timers: ReturnType<typeof setTimeout>[] = [];
     lines.forEach((el) => {
       const delay = Number(el.dataset.delay ?? 0);
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         el.style.opacity = "1";
         el.style.transform = "translateY(0)";
       }, delay);
+      timers.push(timer);
     });
+    return () => timers.forEach(clearTimeout);
   }, []);
 
   return (

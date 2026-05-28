@@ -175,7 +175,7 @@ const getAllProducts = async (req: Request, res: Response) => {
     }, `Products retrieved successfully - ${productCount} products found`);
     
     return res.status(200).json({
-      mesage: "Products retrieved successfully",
+      message: "Products retrieved successfully",
       products,
     });
     
@@ -277,8 +277,13 @@ const updateProduct = async (req: Request, res: Response) => {
       description: product.description,
     };
 
-    // Only update fields that are provided in the request body
-    Object.assign(product, req.body);
+    // Only allow updating whitelisted fields (prevents mass assignment)
+    const allowedFields = ['name', 'description', 'price', 'category'];
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        (product as any)[field] = req.body[field];
+      }
+    }
 
     // Track which fields were updated
     const updatedFields = Object.keys(req.body);

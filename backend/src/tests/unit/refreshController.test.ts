@@ -7,11 +7,15 @@ const {
   setCsrfCookieMock,
   generateAccessTokenMock,
   generateRefreshTokenMock,
+  validateRefreshTokenMock,
+  rotateRefreshTokenMock,
 } = vi.hoisted(() => ({
   setAuthCookiesMock: vi.fn(),
   setCsrfCookieMock: vi.fn(),
   generateAccessTokenMock: vi.fn(),
   generateRefreshTokenMock: vi.fn(),
+  validateRefreshTokenMock: vi.fn(),
+  rotateRefreshTokenMock: vi.fn(),
 }));
 
 vi.mock('../../auth/utils/cookieOptions', () => ({
@@ -22,6 +26,11 @@ vi.mock('../../auth/utils/cookieOptions', () => ({
 vi.mock('../../auth/utils/generateToken', () => ({
   generateAccessToken: generateAccessTokenMock,
   generateRefreshToken: generateRefreshTokenMock,
+}));
+
+vi.mock('../../auth/utils/refreshTokenStore', () => ({
+  validateRefreshToken: validateRefreshTokenMock,
+  rotateRefreshToken: rotateRefreshTokenMock,
 }));
 
 vi.mock('../../observability/observability', () => ({
@@ -85,14 +94,34 @@ describe('refreshAccessToken controller', () => {
     expect((res as any).json).toHaveBeenCalledWith({ message: 'Invalid refresh token' });
   });
 
-  it('returns 200 and rotates tokens when refresh token is valid', async () => {
+  it('returns 403 when refresh token is not found in store', async () => {
     vi.spyOn(jwt, 'verify').mockReturnValueOnce({ userId: 'user-1' } as any);
+    validateRefreshTokenMock.mockResolvedValueOnce(null);
 
     const req = { cookies: { refreshToken: 'valid-token' } } as unknown as Request;
     const res = createRes();
 
     await refreshAccessToken(req, res);
 
+    expect(validateRefreshTokenMock).toHaveBeenCalledWith('valid-token', 'user-1');
+    expect((res as any).status).toHaveBeenCalledWith(403);
+    expect((res as any).json).toHaveBeenCalledWith({ message: 'Invalid refresh token' });
+  });
+
+  it('returns 200 and rotates tokens when refresh token is valid', async () => {
+    vi.spyOn(jwt, 'verify').mockReturnValueOnce({ userId: 'user-1' } as any);
+    validateRefreshTokenMock.mockResolvedValueOnce({
+      _id: 'token-1',
+      userId: { toString: () => 'user-1' },
+    });
+
+    const req = { cookies: { refreshToken: 'valid-token' } } as unknown as Request;
+    const res = createRes();
+
+    await refreshAccessToken(req, res);
+
+    expect(validateRefreshTokenMock).toHaveBeenCalledWith('valid-token', 'user-1');
+    expect(rotateRefreshTokenMock).toHaveBeenCalledOnce();
     expect(setAuthCookiesMock).toHaveBeenCalledWith(res, 'new-access-token', 'new-refresh-token');
     expect(setCsrfCookieMock).toHaveBeenCalledOnce();
     expect((res as any).status).toHaveBeenCalledWith(200);

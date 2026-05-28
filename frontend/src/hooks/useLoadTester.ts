@@ -1,9 +1,10 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import apiClient from "@/services/apiClient"
 
 export function useLoadTester() {
-
   const [logs, setLogs] = useState<any[]>([])
+  const nextIdRef = useRef(1)
+  const completedRef = useRef(0)
 
   async function sendRequests(
     url: string,
@@ -11,67 +12,39 @@ export function useLoadTester() {
     total: number,
     concurrency: number
   ) {
-
-    let completed = 0
-    let id = 1
+    nextIdRef.current = 1
+    completedRef.current = 0
 
     async function worker() {
-
-      while (completed < total) {
+      while (true) {
+        const mySlot = completedRef.current
+        if (mySlot >= total) break
+        completedRef.current++
+        const myId = nextIdRef.current++
 
         const start = performance.now()
 
         try {
-
-          const res = await apiClient({
-            url,
-            method
-          })
-
+          const res = await apiClient({ url, method })
           const latency = performance.now() - start
 
           setLogs(prev => [
             ...prev,
-            {
-              id: id++,
-              status: res.status,
-              cache: res.headers["x-cache-status"],
-              latency
-            }
+            { id: myId, status: res.status, cache: res.headers["x-cache-status"], latency }
           ])
-
         } catch (err: any) {
-
           const latency = performance.now() - start
-
           setLogs(prev => [
             ...prev,
-            {
-              id: id++,
-              status: err.response?.status || 500,
-              cache: "-",
-              latency
-            }
+            { id: myId, status: err.response?.status || 500, cache: "-", latency }
           ])
-
         }
-
-        completed++
-
       }
-
     }
 
-    const workers = []
-
-    for (let i = 0; i < concurrency; i++) {
-      workers.push(worker())
-    }
-
+    const workers = Array.from({ length: Math.min(concurrency, total) }, () => worker())
     await Promise.all(workers)
-
   }
 
   return { logs, sendRequests }
-
 }

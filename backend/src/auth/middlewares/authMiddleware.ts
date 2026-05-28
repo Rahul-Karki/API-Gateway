@@ -63,14 +63,22 @@ const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunctio
       return res.status(401).json({ message: "Access token missing" });
     }
 
+    const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET;
+    if (!accessTokenSecret) {
+      span.setAttributes({
+        'auth.success': false,
+        'auth.error_type': 'missing_secret',
+        'auth.duration_ms': Date.now() - startTime
+      });
+      log.error({ event: 'auth_check', status: 'error', reason: 'missing_access_token_secret' }, 'ACCESS_TOKEN_SECRET not configured');
+      return res.status(500).json({ message: "Server authentication configuration error" });
+    }
+
     const verifyStart = Date.now();
     let decoded: { userId: string };
     
     try {
-      decoded = jwt.verify(
-        token,
-        process.env.ACCESS_TOKEN_SECRET as string
-      ) as { userId: string };
+      decoded = jwt.verify(token, accessTokenSecret) as { userId: string };
       
       const verifyDuration = Date.now() - verifyStart;
       

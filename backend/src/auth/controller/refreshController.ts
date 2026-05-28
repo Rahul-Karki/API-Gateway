@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { generateAccessToken, generateRefreshToken } from "../utils/generateToken";
 import { logger, tracer, SpanStatusCode } from "../../observability/observability";
 import { setAuthCookies, setCsrfCookie } from "../utils/cookieOptions";
+import { rotateRefreshToken, validateRefreshToken } from "../utils/refreshTokenStore";
 
 const refreshAccessToken = async (req: Request, res: Response) => {
   const startTime = Date.now();
@@ -101,6 +102,25 @@ const refreshAccessToken = async (req: Request, res: Response) => {
       });
     }
 
+    const storedToken = await validateRefreshToken(refreshToken, decoded.userId);
+    if (!storedToken) {
+      span.setAttributes({
+        'refresh_token.success': false,
+        'error.type': 'token_revoked_or_missing',
+        'refresh_token.duration_ms': Date.now() - startTime,
+      });
+
+      logger.warn({
+        type: 'refresh_token_failed',
+        reason: 'token_revoked_or_missing',
+        userId: decoded.userId,
+      }, 'Refresh token not found or revoked');
+
+      return res.status(403).json({
+        message: "Invalid refresh token",
+      });
+    }
+
     // Rotate both tokens on refresh to keep the browser session cookie-only.
     const tokenGenStart = Date.now();
     const newAccessToken = generateAccessToken(decoded.userId);
@@ -111,6 +131,19 @@ const refreshAccessToken = async (req: Request, res: Response) => {
       'access_token.generation_time_ms': tokenGenDuration,
       'access_token.generated': true
     });
+
+    try {
+      await rotateRefreshToken({
+        tokenRecord: storedToken,
+        userId: decoded.userId,
+        newRefreshToken,
+        ip: req.ip,
+        userAgent: req.get?.("user-agent"),
+      });
+    } catch (error: any) {
+      logger.error({ error }, 'Refresh token rotation failed');
+      return res.status(500).json({ message: "Failed to rotate refresh token" });
+    }
 
     setAuthCookies(res, newAccessToken, newRefreshToken);
 

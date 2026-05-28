@@ -15,6 +15,7 @@ import { forgotPasswordTemplate } from "../utils/emailTemplate";
 import { logger , tracer , SpanStatusCode } from "../../observability/observability";
 import { traceDbQuery } from "../../observability/middleware/dbTrackerMiddleware";
 import { clearAuthCookies, clearCsrfCookie, setAuthCookies } from "../utils/cookieOptions";
+import { revokeRefreshToken, storeRefreshToken } from "../utils/refreshTokenStore";
 
 const COOLDOWN_AFTER_RESET = 5 * 60 * 1000; // 5 min
 
@@ -111,6 +112,12 @@ const signUp = async (req: Request, res: Response) => {
       'token.generation_time_ms': tokenGenerationDuration
     });
 
+    await storeRefreshToken({
+      userId,
+      refreshToken,
+      ip: req.ip,
+      userAgent: req.get?.("user-agent"),
+    });
 
     setAuthCookies(res, accessToken, refreshToken);
 
@@ -269,6 +276,13 @@ const login = async (req: Request, res: Response) => {
     });
 
     // 6. Set cookie
+    await storeRefreshToken({
+      userId: user._id.toString(),
+      refreshToken,
+      ip: req.ip,
+      userAgent: req.get?.("user-agent"),
+    });
+
     setAuthCookies(res, accessToken, refreshToken);
 
     const duration = Date.now() - startTime;
@@ -451,6 +465,13 @@ const googleLogin = async (req: Request, res: Response) => {
     });
 
     // 6. Set cookies
+    await storeRefreshToken({
+      userId: user._id.toString(),
+      refreshToken,
+      ip: req.ip,
+      userAgent: req.get?.("user-agent"),
+    });
+
     setAuthCookies(res, accessToken, refreshToken);
 
     // 7. Success - add final span attributes
@@ -706,21 +727,20 @@ const forgotPassword = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      // Add span attributes for user not found
+      // Always return 200 to prevent email enumeration
       span.setAttributes({
         'forgot_password.success': false,
         'error.type': 'user_not_found',
         'user.exists': false
       });
       
-      // Log user not found
       logger.info({
         type: 'forgot_password_user_not_found',
         email: email.toLowerCase()
       }, 'Forgot password failed - user not found');
       
-      return res.status(404).json({
-        message: "User not found",
+      return res.status(200).json({
+        message: "If an account exists, a password reset link has been sent",
       });
     }
 
@@ -1333,7 +1353,7 @@ const resendResetLink = async (req: Request, res: Response) => {
     }, 'Sending password reset email in background');
     
     sendEmail({
-      to: "rahulkarki0608@gmail.com", // Note: Consider changing to user.email
+      to: user.email,
       subject: "Password Reset Request",
       html: forgotPasswordTemplate(link),
     }).catch((err: any) => {
@@ -1402,6 +1422,15 @@ const resendResetLink = async (req: Request, res: Response) => {
 };
 
 const logout = async (req: Request, res: Response) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+    if (refreshToken) {
+      await revokeRefreshToken(refreshToken);
+    }
+  } catch (error: any) {
+    logger.error({ error }, "Failed to revoke refresh token during logout");
+  }
+
   clearAuthCookies(res);
   clearCsrfCookie(res);
 
